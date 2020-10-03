@@ -1,0 +1,26 @@
+{
+  "name": "coding-dnd",
+  "version": "0.0.0",
+  "description": "This BetterDiscord plugin will set your status to Do Not Disturb when you start an IDE",
+  "main": "release/CodingDND.plugin.js",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bandagedbd__bdapi": "^0.2.2",
+    "standard": "^14.3.4",
+    "tsc": "^1.20150623.0",
+    "@types/node": "^14.11.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SMC242/CodingDND.git"
+  },
+  "author": "[DTWM] benmitchellmtbV5",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/SMC242/CodingDND/issues"
+  },
+  "homepage": "https://github.com/SMC242/CodingDND#readme"
+}
