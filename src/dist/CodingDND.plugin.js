@@ -54,11 +54,19 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-// install process-list if not installed in load()
+// install process-list if not installed
 var snap = require("process-list") || null;
 if (!snap) {
-    console.log("Must install `process-list` from NPM to use CodingDND");
-    process.exit(1);
+    // attempt to install it with npm
+    var exec = require("child_process").exec;
+    exec("echo Attempting to install 'process-list' from NPM", function (error) { }); // notify user
+    exec("npm install process-list", function (error) {
+        if (error) {
+            // failed to install
+            console.log("Must install `process-list` from NPM to use CodingDND");
+            process.exit(1);
+        }
+    });
 }
 /**
 @cc_on
@@ -200,15 +208,17 @@ module.exports = (function () {
                         });
                     });
                 };
+                /**
+                 * Set the user's status
+                 * @param set_to The status to set. This may be dnd, online, invisible, or idle
+                 */
                 CodingDND.prototype.set_status = function (set_to) {
                     return __awaiter(this, void 0, Promise, function () {
                         var UserSettingsUpdater;
                         return __generator(this, function (_a) {
                             UserSettingsUpdater = Bapi.findModuleByProps("updateLocalSettings");
                             UserSettingsUpdater.updateLocalSettings({
-                                status: {
-                                    text: "some text"
-                                }
+                                status: set_to
                             });
                             return [2 /*return*/];
                         });
@@ -259,38 +269,6 @@ module.exports = (function () {
                                     return [3 /*break*/, 1];
                                 case 3: return [2 /*return*/];
                             }
-                        });
-                    });
-                };
-                /**
-                 * Search through a sorted list for the target value.
-                 * @param to_search The sorted list to search through
-                 * @param target The value to find in the list
-                 * @param key The function to return the value to compare with. Defaults to returning the input value.
-                 * @returns The object where the target was found. Will be null if not found
-                 */
-                CodingDND.prototype.binary_search = function (to_search, target, key) {
-                    return __awaiter(this, void 0, Promise, function () {
-                        var mid, current, upper, lower;
-                        return __generator(this, function (_a) {
-                            // set default key
-                            key = key !== null && key !== void 0 ? key : function (value) {
-                                value;
-                            };
-                            upper = to_search.length;
-                            lower = 0;
-                            while (lower <= upper) {
-                                mid = ~~(length + (upper - lower) / 2); // ensure this is an integer with bitwise NOT
-                                current = key(to_search[mid]);
-                                if (current === target)
-                                    return [2 /*return*/, to_search[mid]];
-                                else if (current < target)
-                                    lower = mid + 1;
-                                // discard the left part of the list
-                                else
-                                    upper = mid - 1; // discard the right part of the list
-                            }
-                            return [2 /*return*/, null];
                         });
                     });
                 };
