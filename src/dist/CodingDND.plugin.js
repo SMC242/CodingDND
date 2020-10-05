@@ -54,6 +54,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+// install process-list if not installed in load()
+var snap = require("process-list") || null;
+if (!snap) {
+    console.log("Must install `process-list` from NPM to use CodingDND");
+    process.exit(1);
+}
 /**
 @cc_on
 @if (@_jscript)
@@ -92,9 +98,9 @@ module.exports = (function () {
                 },
             ],
             version: "0.0.0",
-            description: "Getting started",
+            description: "This plugin will set the Do Not Disturb status when you open an IDE. You must install `process-list` via NPM to use this plugin",
             github: "https://github.com/SMC242/CodingDND",
-            github_raw: "https://github.com/SMC242/CodingDND/tree/master/src/dst/CodingDND.js"
+            github_raw: "https://github.com/SMC242/CodingDND/tree/master/src/dist/CodingDND.js"
         },
         changelog: [
             { title: "New Stuff", items: ["Added more settings", "Added changelog"] },
@@ -153,13 +159,18 @@ module.exports = (function () {
             return /** @class */ (function (_super) {
                 __extends(CodingDND, _super);
                 function CodingDND() {
-                    return _super.call(this) || this;
+                    var _a;
+                    var _this = _super.call(this) || this;
+                    _this.targets = (_a = Bapi.loadData("CodingDND", "targets")) !== null && _a !== void 0 ? _a : [];
+                    _this.running = [];
+                    return _this;
                 }
                 CodingDND.prototype.onStart = function () {
                     Logger.log("Started");
                     Patcher.before(Logger, "log", function (t, a) {
                         a[0] = "Patched Message: " + a[0];
                     });
+                    this.loop();
                 };
                 CodingDND.prototype.onStop = function () {
                     Logger.log("Stopped");
@@ -167,6 +178,121 @@ module.exports = (function () {
                 };
                 CodingDND.prototype.getSettingsPanel = function () {
                     return Settings.SettingPanel.build(this.saveSettings.bind(this), new Settings.SettingGroup("Example Plugin Settings").append(null));
+                };
+                /**
+                 * Get the targeted tasks that are running
+                 */
+                CodingDND.prototype.check_tasks = function () {
+                    return __awaiter(this, void 0, void 0, function () {
+                        var current_tasks;
+                        var _this = this;
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
+                                case 0: return [4 /*yield*/, snap("name")];
+                                case 1:
+                                    current_tasks = _a.sent();
+                                    return [2 /*return*/, current_tasks
+                                            .map(function (value) {
+                                            return _this.targets.includes(value) ? value : null;
+                                        })
+                                            .filter(function (value) { return value; })]; // check if any of the values are truthy
+                            }
+                        });
+                    });
+                };
+                CodingDND.prototype.set_status = function (set_to) {
+                    return __awaiter(this, void 0, Promise, function () {
+                        var UserSettingsUpdater;
+                        return __generator(this, function (_a) {
+                            UserSettingsUpdater = Bapi.findModuleByProps("updateLocalSettings");
+                            UserSettingsUpdater.updateLocalSettings({
+                                status: {
+                                    text: "some text"
+                                }
+                            });
+                            return [2 /*return*/];
+                        });
+                    });
+                };
+                /**
+                 * Continually check for a target being started or stopped
+                 */
+                CodingDND.prototype.loop = function () {
+                    return __awaiter(this, void 0, void 0, function () {
+                        var sleep, new_running, _loop_1, this_1;
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
+                                case 0:
+                                    sleep = function () { return new Promise(function (r) { return setTimeout(r, 15000); }); };
+                                    new_running = [];
+                                    _loop_1 = function () {
+                                        var current_targets;
+                                        return __generator(this, function (_a) {
+                                            switch (_a.label) {
+                                                case 0: return [4 /*yield*/, this_1.check_tasks()];
+                                                case 1:
+                                                    current_targets = _a.sent();
+                                                    // add the new tasks and remove the ones that have stopped
+                                                    this_1.running.forEach(function (value) {
+                                                        if (current_targets.includes(value)) {
+                                                            new_running = new_running.concat(value);
+                                                        }
+                                                    });
+                                                    // set the status if running, remove status if not running
+                                                    this_1.set_status(this_1.running ? "DND" : "Online");
+                                                    // sleep for 15 seconds
+                                                    return [4 /*yield*/, sleep()];
+                                                case 2:
+                                                    // sleep for 15 seconds
+                                                    _a.sent();
+                                                    return [2 /*return*/];
+                                            }
+                                        });
+                                    };
+                                    this_1 = this;
+                                    _a.label = 1;
+                                case 1:
+                                    if (!true) return [3 /*break*/, 3];
+                                    return [5 /*yield**/, _loop_1()];
+                                case 2:
+                                    _a.sent();
+                                    return [3 /*break*/, 1];
+                                case 3: return [2 /*return*/];
+                            }
+                        });
+                    });
+                };
+                /**
+                 * Search through a sorted list for the target value.
+                 * @param to_search The sorted list to search through
+                 * @param target The value to find in the list
+                 * @param key The function to return the value to compare with. Defaults to returning the input value.
+                 * @returns The object where the target was found. Will be null if not found
+                 */
+                CodingDND.prototype.binary_search = function (to_search, target, key) {
+                    return __awaiter(this, void 0, Promise, function () {
+                        var mid, current, upper, lower;
+                        return __generator(this, function (_a) {
+                            // set default key
+                            key = key !== null && key !== void 0 ? key : function (value) {
+                                value;
+                            };
+                            upper = to_search.length;
+                            lower = 0;
+                            while (lower <= upper) {
+                                mid = ~~(length + (upper - lower) / 2); // ensure this is an integer with bitwise NOT
+                                current = key(to_search[mid]);
+                                if (current === target)
+                                    return [2 /*return*/, to_search[mid]];
+                                else if (current < target)
+                                    lower = mid + 1;
+                                // discard the left part of the list
+                                else
+                                    upper = mid - 1; // discard the right part of the list
+                            }
+                            return [2 /*return*/, null];
+                        });
+                    });
                 };
                 return CodingDND;
             }(Plugin));

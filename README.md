@@ -1,4 +1,4 @@
-This BetterDiscord plugin will set your status to Do Not Disturb when you start an IDE
+This BetterDiscord plugin will set your status to Do Not Disturb when you start an IDE. You must install `process-list` via NPM to use this plugin
 
 ### Iteration 1
 

@@ -6,6 +6,13 @@
  * @source https://github.com/SMC242/CodingDND/tree/master/src/dst/CodingDND.js
  */
 
+// install process-list if not installed in load()
+const snap = require("process-list") || null;
+if (!snap) {
+  console.log("Must install `process-list` from NPM to use CodingDND");
+  process.exit(1);
+}
+
 /**
 @cc_on
 @if (@_jscript) 
@@ -46,10 +53,11 @@ module.exports = (() => {
         },
       ],
       version: "0.0.0",
-      description: "Getting started",
+      description:
+        "This plugin will set the Do Not Disturb status when you open an IDE. You must install `process-list` via NPM to use this plugin",
       github: "https://github.com/SMC242/CodingDND",
       github_raw:
-        "https://github.com/SMC242/CodingDND/tree/master/src/dst/CodingDND.js",
+        "https://github.com/SMC242/CodingDND/tree/master/src/dist/CodingDND.js",
     },
     changelog: [
       { title: "New Stuff", items: ["Added more settings", "Added changelog"] },
@@ -115,8 +123,13 @@ module.exports = (() => {
           const { Logger, Patcher, Settings } = Library;
 
           return class CodingDND extends Plugin {
+            targets: Array<string>;
+            running: Array<string>;
+
             constructor() {
               super();
+              this.targets = Bapi.loadData("CodingDND", "targets") ?? [];
+              this.running = [];
             }
 
             onStart() {
@@ -124,6 +137,7 @@ module.exports = (() => {
               Patcher.before(Logger, "log", (t, a) => {
                 a[0] = "Patched Message: " + a[0];
               });
+              this.loop();
             }
 
             onStop() {
@@ -138,6 +152,85 @@ module.exports = (() => {
                   null
                 )
               );
+            }
+
+            /**
+             * Get the targeted tasks that are running
+             */
+            async check_tasks() {
+              const current_tasks = await snap("name");
+              return current_tasks
+                .map((value) => {
+                  return this.targets.includes(value) ? value : null;
+                })
+                .filter((value) => value); // check if any of the values are truthy
+            }
+
+            async set_status(set_to: string): Promise<void> {
+              let UserSettingsUpdater = Bapi.findModuleByProps(
+                "updateLocalSettings"
+              );
+              UserSettingsUpdater.updateLocalSettings({
+                status: {
+                  text: "some text",
+                },
+              });
+            }
+
+            /**
+             * Continually check for a target being started or stopped
+             */
+            async loop() {
+              const sleep = () => new Promise((r) => setTimeout(r, 15000)); // sleep for 15 seconds
+              let new_running: Array<string> = [];
+              while (true) {
+                const current_targets = await this.check_tasks();
+                // add the new tasks and remove the ones that have stopped
+                this.running.forEach((value) => {
+                  if (current_targets.includes(value)) {
+                    new_running = new_running.concat(value);
+                  }
+                });
+                // set the status if running, remove status if not running
+                this.set_status(this.running ? "DND" : "Online");
+
+                // sleep for 15 seconds
+                await sleep();
+              }
+            }
+
+            /**
+             * Search through a sorted list for the target value.
+             * @param to_search The sorted list to search through
+             * @param target The value to find in the list
+             * @param key The function to return the value to compare with. Defaults to returning the input value.
+             * @returns The object where the target was found. Will be null if not found
+             */
+            async binary_search(
+              to_search: Object[],
+              target: any,
+              key?: Function
+            ): Promise<any | null> {
+              // set default key
+              key =
+                key ??
+                function (value: unknown) {
+                  value;
+                };
+              // standard binary search with a key from here
+              let mid: number;
+              let current: any;
+              let upper: number = to_search.length;
+              let lower: number = 0;
+              while (lower <= upper) {
+                mid = ~~(length + (upper - lower) / 2); // ensure this is an integer with bitwise NOT
+                current = key(to_search[mid]);
+                if (current === target) return to_search[mid];
+                else if (current < target) lower = mid + 1;
+                // discard the left part of the list
+                else upper = mid - 1; // discard the right part of the list
+              }
+              return null;
             }
           };
         };
