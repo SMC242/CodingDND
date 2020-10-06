@@ -7,3 +7,11 @@ Support a list of IDEs (Atom, VSCode, IntelliJ IDEA, Pycharm)
 ### Iteration 2
 
 Support custom process names so users can add other IDEs or even non-IDEs
+
+### Iteration 3
+
+Allow different statuses from DND and online
+
+### Iteration 4
+
+Mute certain channels when the processes run
