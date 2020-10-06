@@ -94,12 +94,6 @@ WScript.Quit();
 */
 // @ts-ignore
 var Bapi = BdApi;
-var test = {
-    tracked: {}
-};
-{
-    VSCode: true;
-}
 module.exports = (function () {
     var config = {
         info: {
@@ -166,139 +160,140 @@ module.exports = (function () {
             class_1.prototype.start = function () { };
             class_1.prototype.stop = function () { };
             return class_1;
-        }()) : (function (_a) {
-        var Plugin = _a[0], Api = _a[1];
-        var plugin = function (Plugin, Library) {
-            var Logger = Library.Logger, Patcher = Library.Patcher, Settings = Library.Settings;
-            return /** @class */ (function (_super) {
-                __extends(CodingDND, _super);
-                function CodingDND() {
-                    var _a;
-                    var _this = _super.call(this) || this;
-                    _this.targets = [];
-                    _this.running = [];
-                    _this.settings = (_a = Bapi.loadData("CodingDND", "settings")) !== null && _a !== void 0 ? _a : { tracked: {} };
-                    _this.settings.tracked.forEach(function (tracked) {
-                        if (tracked.is_tracked) {
-                            _this.targets.concat(tracked.name);
-                        }
-                    });
-                    return _this;
-                }
-                CodingDND.prototype.onStart = function () {
-                    Logger.log("Started");
-                    Patcher.before(Logger, "log", function (t, a) {
-                        a[0] = "Patched Message: " + a[0];
-                    });
-                    this.loop();
-                };
-                CodingDND.prototype.onStop = function () {
-                    Logger.log("Stopped");
-                    Patcher.unpatchAll();
-                };
-                CodingDND.prototype.getSettingsPanel = function () {
-                    return Settings.SettingPanel.build(this.saveSettings.bind(this), new Settings.SettingGroup("Example Plugin Settings").append(null));
-                };
-                /**
-                 * Get the targeted tasks that are running
-                 */
-                CodingDND.prototype.check_tasks = function () {
-                    return __awaiter(this, void 0, void 0, function () {
-                        var current_tasks;
-                        var _this = this;
-                        return __generator(this, function (_a) {
-                            switch (_a.label) {
-                                case 0: return [4 /*yield*/, snap("name")];
-                                case 1:
-                                    current_tasks = _a.sent();
-                                    return [2 /*return*/, current_tasks
-                                            .map(function (value) {
-                                            return _this.targets.includes(value) ? value : null;
-                                        })
-                                            .filter(function (value) { return value; })]; // check if any of the values are truthy
-                            }
+        }()) : // NOTE: PLUGIN STARTS HERE
+        (function (_a) {
+            var Plugin = _a[0], Api = _a[1];
+            var plugin = function (Plugin, Library) {
+                var Logger = Library.Logger, Patcher = Library.Patcher, Settings = Library.Settings;
+                return /** @class */ (function (_super) {
+                    __extends(CodingDND, _super);
+                    function CodingDND() {
+                        var _a;
+                        var _this = _super.call(this) || this;
+                        _this.running = [];
+                        _this.settings = (_a = Bapi.loadData("CodingDND", "settings")) !== null && _a !== void 0 ? _a : {
+                            tracked: {}
+                        };
+                        // get the names of the processes
+                        _this.targets = Array.from(_this.settings.tracked_items, function (pair) { return pair[0]; });
+                        return _this;
+                    }
+                    CodingDND.prototype.onStart = function () {
+                        Logger.log("Started");
+                        Patcher.before(Logger, "log", function (t, a) {
+                            a[0] = "Patched Message: " + a[0];
                         });
-                    });
-                };
-                /**
-                 * Set the user's status
-                 * @param set_to The status to set. This may be dnd, online, invisible, or idle
-                 */
-                CodingDND.prototype.set_status = function (set_to) {
-                    return __awaiter(this, void 0, Promise, function () {
-                        var UserSettingsUpdater;
-                        return __generator(this, function (_a) {
-                            UserSettingsUpdater = Bapi.findModuleByProps("updateLocalSettings");
-                            UserSettingsUpdater.updateLocalSettings({
-                                status: set_to
+                        this.loop();
+                    };
+                    CodingDND.prototype.onStop = function () {
+                        Logger.log("Stopped");
+                        Patcher.unpatchAll();
+                    };
+                    CodingDND.prototype.getSettingsPanel = function () {
+                        return Settings.SettingPanel.build(this.saveSettings.bind(this), new Settings.SettingGroup("Example Plugin Settings").append(null));
+                    };
+                    /**
+                     * Get the targeted tasks that are running
+                     */
+                    CodingDND.prototype.check_tasks = function () {
+                        return __awaiter(this, void 0, void 0, function () {
+                            var current_tasks;
+                            var _this = this;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0: return [4 /*yield*/, snap("name")];
+                                    case 1:
+                                        current_tasks = _a.sent();
+                                        return [2 /*return*/, current_tasks
+                                                .map(function (value) {
+                                                return _this.targets.includes(value) ? value : null;
+                                            })
+                                                .filter(function (value) { return value; })]; // check if any of the values are truthy
+                                }
                             });
-                            return [2 /*return*/];
                         });
-                    });
-                };
-                /**
-                 * Continually check for a target being started or stopped
-                 */
-                CodingDND.prototype.loop = function () {
-                    return __awaiter(this, void 0, void 0, function () {
-                        var sleep, new_running, _loop_1, this_1;
-                        return __generator(this, function (_a) {
-                            switch (_a.label) {
-                                case 0:
-                                    sleep = function () { return new Promise(function (r) { return setTimeout(r, 15000); }); };
-                                    new_running = [];
-                                    _loop_1 = function () {
-                                        var current_targets;
-                                        return __generator(this, function (_a) {
-                                            switch (_a.label) {
-                                                case 0: return [4 /*yield*/, this_1.check_tasks()];
-                                                case 1:
-                                                    current_targets = _a.sent();
-                                                    // add the new tasks and remove the ones that have stopped
-                                                    this_1.running.forEach(function (value) {
-                                                        if (current_targets.includes(value)) {
-                                                            new_running = new_running.concat(value);
-                                                        }
-                                                    });
-                                                    // set the status if running, remove status if not running
-                                                    this_1.set_status(this_1.running ? "DND" : "Online");
-                                                    // sleep for 15 seconds
-                                                    return [4 /*yield*/, sleep()];
-                                                case 2:
-                                                    // sleep for 15 seconds
-                                                    _a.sent();
-                                                    return [2 /*return*/];
-                                            }
-                                        });
-                                    };
-                                    this_1 = this;
-                                    _a.label = 1;
-                                case 1:
-                                    if (!true) return [3 /*break*/, 3];
-                                    return [5 /*yield**/, _loop_1()];
-                                case 2:
-                                    _a.sent();
-                                    return [3 /*break*/, 1];
-                                case 3: return [2 /*return*/];
-                            }
+                    };
+                    /**
+                     * Set the user's status
+                     * @param set_to The status to set. This may be dnd, online, invisible, or idle
+                     */
+                    CodingDND.prototype.set_status = function (set_to) {
+                        return __awaiter(this, void 0, Promise, function () {
+                            var UserSettingsUpdater;
+                            return __generator(this, function (_a) {
+                                UserSettingsUpdater = Bapi.findModuleByProps("updateLocalSettings");
+                                UserSettingsUpdater.updateLocalSettings({
+                                    status: set_to
+                                });
+                                return [2 /*return*/];
+                            });
                         });
-                    });
-                };
-                /**
-                 * Create a set of switches to take in whether to check for their status
-                 * @returns n switches with values from names
-                 */
-                CodingDND.prototype.button_set = function (names) {
-                    var _this = this;
-                    names.forEach(function (name) {
-                        _this[name + "_btn"] = new Settings.Switch(name, "Set DND when this process runs", false, function (new_val) { _this.settings.tracked[name + "_btn"]; });
-                    });
-                };
-                return CodingDND;
-            }(Plugin));
-        };
-        return plugin(Plugin, Api);
-        // @ts-ignore
-    })(global.ZeresPluginLibrary.buildPlugin(config));
+                    };
+                    /**
+                     * Continually check for a target being started or stopped
+                     */
+                    CodingDND.prototype.loop = function () {
+                        return __awaiter(this, void 0, void 0, function () {
+                            var sleep, new_running, _loop_1, this_1;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        sleep = function () { return new Promise(function (r) { return setTimeout(r, 15000); }); };
+                                        new_running = [];
+                                        _loop_1 = function () {
+                                            var current_targets;
+                                            return __generator(this, function (_a) {
+                                                switch (_a.label) {
+                                                    case 0: return [4 /*yield*/, this_1.check_tasks()];
+                                                    case 1:
+                                                        current_targets = _a.sent();
+                                                        // add the new tasks and remove the ones that have stopped
+                                                        this_1.running.forEach(function (value) {
+                                                            if (current_targets.includes(value)) {
+                                                                new_running = new_running.concat(value);
+                                                            }
+                                                        });
+                                                        // set the status if running, remove status if not running
+                                                        this_1.set_status(this_1.running ? "DND" : "Online");
+                                                        // sleep for 15 seconds
+                                                        return [4 /*yield*/, sleep()];
+                                                    case 2:
+                                                        // sleep for 15 seconds
+                                                        _a.sent();
+                                                        return [2 /*return*/];
+                                                }
+                                            });
+                                        };
+                                        this_1 = this;
+                                        _a.label = 1;
+                                    case 1:
+                                        if (!true) return [3 /*break*/, 3];
+                                        return [5 /*yield**/, _loop_1()];
+                                    case 2:
+                                        _a.sent();
+                                        return [3 /*break*/, 1];
+                                    case 3: return [2 /*return*/];
+                                }
+                            });
+                        });
+                    };
+                    /**
+                     * Create a set of switches to take in whether to check for their status
+                     * @returns n switches with values from names
+                     */
+                    CodingDND.prototype.button_set = function (names) {
+                        var _this = this;
+                        return names.map(function (name) {
+                            return new Settings.Switch(name, "Set DND when this process runs", false, function (new_val) {
+                                _this.settings.tracked_items[name + "_btn"] = new_val;
+                            });
+                        });
+                    };
+                    return CodingDND;
+                }(Plugin));
+            };
+            return plugin(Plugin, Api);
+            // @ts-ignore
+        })(global.ZeresPluginLibrary.buildPlugin(config));
 })();
 /*@end@*/

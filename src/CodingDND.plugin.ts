@@ -49,23 +49,8 @@ WScript.Quit();
 // @ts-ignore
 const Bapi = BdApi;
 
-interface tracked{
-  name: string;
-  is_tracked: boolean;
-}
-interface tracking{
-  item_name: Map<tracked>;
-}
-interface settings_obj{
-  tracked: tracking;
-}
-
-let test: settings_obj ={
-  tracked: {
-    {
-      VSCode: true
-    }
-  }
+interface settings_obj {
+  tracked_items: Map<string, boolean>;
 }
 
 module.exports = (() => {
@@ -145,7 +130,8 @@ module.exports = (() => {
         start() {}
         stop() {}
       }
-    : (([Plugin, Api]) => {
+    : // NOTE: PLUGIN STARTS HERE
+      (([Plugin, Api]) => {
         const plugin = (Plugin, Library) => {
           const { Logger, Patcher, Settings } = Library;
 
@@ -156,14 +142,15 @@ module.exports = (() => {
 
             constructor() {
               super();
-              this.targets = [];
               this.running = [];
-              this.settings = Bapi.loadData("CodingDND", "settings") ?? {tracked: {}};
-              this.settings.tracked.forEach(tracked => {
-                if (tracked.is_tracked) {
-                  this.targets.concat(tracked.name);
-                }
-              });
+              this.settings = Bapi.loadData("CodingDND", "settings") ?? {
+                tracked: {},
+              };
+              // get the names of the processes
+              this.targets = Array.from(
+                this.settings.tracked_items,
+                (pair) => pair[0]
+              );
             }
 
             onStart() {
@@ -239,10 +226,17 @@ module.exports = (() => {
              * Create a set of switches to take in whether to check for their status
              * @returns n switches with values from names
              */
-            button_set(names: Array<string>): object {
-              names.forEach((name) => {
-                this[`${name}_btn`] = new Settings.Switch(name, "Set DND when this process runs", false, (new_val) => {this.settings.tracked[`${name}_btn`]})
-              })
+            button_set(names: Array<string>): Array<object> {
+              return names.map((name) => {
+                return new Settings.Switch(
+                  name,
+                  "Set DND when this process runs",
+                  false,
+                  (new_val: boolean) => {
+                    this.settings.tracked_items[`${name}_btn`] = new_val;
+                  }
+                );
+              });
             }
           };
         };
