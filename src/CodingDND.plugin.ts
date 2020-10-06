@@ -49,6 +49,25 @@ WScript.Quit();
 // @ts-ignore
 const Bapi = BdApi;
 
+interface tracked{
+  name: string;
+  is_tracked: boolean;
+}
+interface tracking{
+  item_name: Map<tracked>;
+}
+interface settings_obj{
+  tracked: tracking;
+}
+
+let test: settings_obj ={
+  tracked: {
+    {
+      VSCode: true
+    }
+  }
+}
+
 module.exports = (() => {
   const config = {
     info: {
@@ -133,11 +152,18 @@ module.exports = (() => {
           return class CodingDND extends Plugin {
             targets: Array<string>;
             running: Array<string>;
+            settings: settings_obj;
 
             constructor() {
               super();
-              this.targets = Bapi.loadData("CodingDND", "targets") ?? [];
+              this.targets = [];
               this.running = [];
+              this.settings = Bapi.loadData("CodingDND", "settings") ?? {tracked: {}};
+              this.settings.tracked.forEach(tracked => {
+                if (tracked.is_tracked) {
+                  this.targets.concat(tracked.name);
+                }
+              });
             }
 
             onStart() {
@@ -207,6 +233,16 @@ module.exports = (() => {
                 // sleep for 15 seconds
                 await sleep();
               }
+            }
+
+            /**
+             * Create a set of switches to take in whether to check for their status
+             * @returns n switches with values from names
+             */
+            button_set(names: Array<string>): object {
+              names.forEach((name) => {
+                this[`${name}_btn`] = new Settings.Switch(name, "Set DND when this process runs", false, (new_val) => {this.settings.tracked[`${name}_btn`]})
+              })
             }
           };
         };

@@ -94,6 +94,12 @@ WScript.Quit();
 */
 // @ts-ignore
 var Bapi = BdApi;
+var test = {
+    tracked: {}
+};
+{
+    VSCode: true;
+}
 module.exports = (function () {
     var config = {
         info: {
@@ -169,8 +175,14 @@ module.exports = (function () {
                 function CodingDND() {
                     var _a;
                     var _this = _super.call(this) || this;
-                    _this.targets = (_a = Bapi.loadData("CodingDND", "targets")) !== null && _a !== void 0 ? _a : [];
+                    _this.targets = [];
                     _this.running = [];
+                    _this.settings = (_a = Bapi.loadData("CodingDND", "settings")) !== null && _a !== void 0 ? _a : { tracked: {} };
+                    _this.settings.tracked.forEach(function (tracked) {
+                        if (tracked.is_tracked) {
+                            _this.targets.concat(tracked.name);
+                        }
+                    });
                     return _this;
                 }
                 CodingDND.prototype.onStart = function () {
@@ -270,6 +282,16 @@ module.exports = (function () {
                                 case 3: return [2 /*return*/];
                             }
                         });
+                    });
+                };
+                /**
+                 * Create a set of switches to take in whether to check for their status
+                 * @returns n switches with values from names
+                 */
+                CodingDND.prototype.button_set = function (names) {
+                    var _this = this;
+                    names.forEach(function (name) {
+                        _this[name + "_btn"] = new Settings.Switch(name, "Set DND when this process runs", false, function (new_val) { _this.settings.tracked[name + "_btn"]; });
                     });
                 };
                 return CodingDND;
