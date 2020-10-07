@@ -7,8 +7,9 @@
  */
 
 // install process-list if not installed
-const snap = require("process-list") || null;
-if (!snap) {
+try {
+  var snap = require("process-list");
+} catch (error) {
   // attempt to install it with npm
   const { exec } = require("child_process");
   exec("echo Attempting to install 'process-list' from NPM", (error) => {}); // notify user
@@ -130,8 +131,7 @@ module.exports = (() => {
         start() {}
         stop() {}
       }
-    : // NOTE: PLUGIN STARTS HERE
-      (([Plugin, Api]) => {
+    : (([Plugin, Api]) => {
         const plugin = (Plugin, Library) => {
           const { Logger, Patcher, Settings } = Library;
 
@@ -143,8 +143,9 @@ module.exports = (() => {
             constructor() {
               super();
               this.running = [];
+              this.targets = [];
               this.settings = Bapi.loadData("CodingDND", "settings") ?? {
-                tracked: {},
+                tracked_items: new Map(),
               };
               // get the names of the processes
               this.targets = Array.from(
@@ -169,9 +170,14 @@ module.exports = (() => {
             getSettingsPanel() {
               return Settings.SettingPanel.build(
                 this.saveSettings.bind(this),
-                new Settings.SettingGroup("Example Plugin Settings").append(
-                  null
-                )
+                this.button_set([
+                  "Atom",
+                  "Visual Studio Code",
+                  "IntelliJ",
+                  "Eclipse",
+                  "Visual Studio",
+                  "Pycharm",
+                ])
               );
             }
 
