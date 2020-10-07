@@ -132,7 +132,7 @@ module.exports = (() => {
         stop() {}
       }
     : (([Plugin, Api]) => {
-        const plugin = (Plugin, Library) => {
+        const CodingDND = (Plugin, Library) => {
           const { Logger, Patcher, Settings } = Library;
 
           return class CodingDND extends Plugin {
@@ -154,18 +154,32 @@ module.exports = (() => {
               );
             }
 
-            onStart() {
+            getName() {
+              return config.info.name;
+            }
+            getAuthor() {
+              return config.info.name;
+            }
+            getDescription() {
+              return config.info.description;
+            }
+            getVersion() {
+              return config.info.version;
+            }
+
+            start() {
               Logger.log("Started");
               Patcher.before(Logger, "log", (t, a) => {
                 a[0] = "Patched Message: " + a[0];
               });
               this.loop();
             }
-
-            onStop() {
+            stop() {
               Logger.log("Stopped");
               Patcher.unpatchAll();
             }
+            load() {}
+            onLoad() {}
 
             getSettingsPanel() {
               return Settings.SettingPanel.build(
@@ -246,7 +260,7 @@ module.exports = (() => {
             }
           };
         };
-        return plugin(Plugin, Api);
+        return CodingDND(Plugin, Api);
         // @ts-ignore
       })(global.ZeresPluginLibrary.buildPlugin(config));
 })();

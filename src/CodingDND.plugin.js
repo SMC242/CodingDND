@@ -1,4 +1,3 @@
-"use strict";
 /**
  * @name CodingDND
  * @invite https://joindtwm.net/join
@@ -113,7 +112,7 @@ module.exports = (() => {
             stop() { }
         }
         : (([Plugin, Api]) => {
-            const plugin = (Plugin, Library) => {
+            const CodingDND = (Plugin, Library) => {
                 const { Logger, Patcher, Settings } = Library;
                 return class CodingDND extends Plugin {
                     constructor() {
@@ -127,17 +126,31 @@ module.exports = (() => {
                         // get the names of the processes
                         this.targets = Array.from(this.settings.tracked_items, (pair) => pair[0]);
                     }
-                    onStart() {
+                    getName() {
+                        return config.info.name;
+                    }
+                    getAuthor() {
+                        return config.info.name;
+                    }
+                    getDescription() {
+                        return config.info.description;
+                    }
+                    getVersion() {
+                        return config.info.version;
+                    }
+                    start() {
                         Logger.log("Started");
                         Patcher.before(Logger, "log", (t, a) => {
                             a[0] = "Patched Message: " + a[0];
                         });
                         this.loop();
                     }
-                    onStop() {
+                    stop() {
                         Logger.log("Stopped");
                         Patcher.unpatchAll();
                     }
+                    load() { }
+                    onLoad() { }
                     getSettingsPanel() {
                         return Settings.SettingPanel.build(this.saveSettings.bind(this), this.button_set([
                             "Atom",
@@ -208,7 +221,7 @@ module.exports = (() => {
                     }
                 };
             };
-            return plugin(Plugin, Api);
+            return CodingDND(Plugin, Api);
             // @ts-ignore
         })(global.ZeresPluginLibrary.buildPlugin(config));
 })();
