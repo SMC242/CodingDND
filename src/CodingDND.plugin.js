@@ -15,11 +15,21 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-// install process-list if not installed in load()
-const snap = require("process-list") || null;
-if (!snap) {
-    console.log("Must install `process-list` from NPM to use CodingDND");
-    process.exit(1);
+// install process-list if not installed
+try {
+    var snap = require("process-list");
+}
+catch (error) {
+    // attempt to install it with npm
+    const { exec } = require("child_process");
+    exec("echo Attempting to install 'process-list' from NPM", (error) => { }); // notify user
+    exec("npm install process-list", (error) => {
+        if (error) {
+            // failed to install
+            console.log("Must install `process-list` from NPM to use CodingDND");
+            process.exit(1);
+        }
+    });
 }
 /**
 @cc_on
@@ -107,69 +117,93 @@ module.exports = (() => {
                 const { Logger, Patcher, Settings } = Library;
                 return class CodingDND extends Plugin {
                     constructor() {
+                        var _a;
                         super();
+                        this.running = [];
                         this.targets = [];
+                        this.settings = (_a = Bapi.loadData("CodingDND", "settings")) !== null && _a !== void 0 ? _a : {
+                            tracked_items: new Map(),
+                        };
+                        // get the names of the processes
+                        this.targets = Array.from(this.settings.tracked_items, (pair) => pair[0]);
                     }
                     onStart() {
                         Logger.log("Started");
                         Patcher.before(Logger, "log", (t, a) => {
                             a[0] = "Patched Message: " + a[0];
                         });
+                        this.loop();
                     }
                     onStop() {
                         Logger.log("Stopped");
                         Patcher.unpatchAll();
                     }
                     getSettingsPanel() {
-                        return Settings.SettingPanel.build(this.saveSettings.bind(this), new Settings.SettingGroup("Example Plugin Settings").append(null));
+                        return Settings.SettingPanel.build(this.saveSettings.bind(this), this.button_set([
+                            "Atom",
+                            "Visual Studio Code",
+                            "IntelliJ",
+                            "Eclipse",
+                            "Visual Studio",
+                            "Pycharm",
+                        ]));
                     }
                     /**
-                     * Check if any of the target tasks are running
+                     * Get the targeted tasks that are running
                      */
                     check_tasks() {
                         return __awaiter(this, void 0, void 0, function* () {
                             const current_tasks = yield snap("name");
                             return current_tasks
                                 .map((value) => {
-                                this.targets.forEach((target) => {
-                                    if (value.includes(target)) {
-                                        return true;
-                                    }
-                                });
+                                return this.targets.includes(value) ? value : null;
                             })
-                                .some((value) => value); // check if any of the values are truthy
+                                .filter((value) => value); // check if any of the values are truthy
                         });
                     }
                     /**
-                     * Search through a sorted list for the target value.
-                     * @param to_search The sorted list to search through
-                     * @param target The value to find in the list
-                     * @param key The function to return the value to compare with. Defaults to returning the input value.
-                     * @returns The object where the target was found. Will be null if not found
+                     * Set the user's status
+                     * @param set_to The status to set. This may be dnd, online, invisible, or idle
                      */
-                    binary_search(to_search, target, key) {
+                    set_status(set_to) {
                         return __awaiter(this, void 0, void 0, function* () {
-                            // set default key
-                            key = key !== null && key !== void 0 ? key : function (value) {
-                                value;
-                            };
-                            // standard binary search with a key from here
-                            let mid;
-                            let current;
-                            let upper = to_search.length;
-                            let lower = 0;
-                            while (lower <= upper) {
-                                mid = ~~(length + (upper - lower) / 2); // ensure this is an integer with bitwise NOT
-                                current = key(to_search[mid]);
-                                if (current === target)
-                                    return to_search[mid];
-                                else if (current < target)
-                                    lower = mid + 1;
-                                // discard the left part of the list
-                                else
-                                    upper = mid - 1; // discard the right part of the list
+                            let UserSettingsUpdater = Bapi.findModuleByProps("updateLocalSettings");
+                            UserSettingsUpdater.updateLocalSettings({
+                                status: set_to,
+                            });
+                        });
+                    }
+                    /**
+                     * Continually check for a target being started or stopped
+                     */
+                    loop() {
+                        return __awaiter(this, void 0, void 0, function* () {
+                            const sleep = () => new Promise((r) => setTimeout(r, 15000)); // sleep for 15 seconds
+                            let new_running = [];
+                            while (true) {
+                                const current_targets = yield this.check_tasks();
+                                // add the new tasks and remove the ones that have stopped
+                                this.running.forEach((value) => {
+                                    if (current_targets.includes(value)) {
+                                        new_running = new_running.concat(value);
+                                    }
+                                });
+                                // set the status if running, remove status if not running
+                                this.set_status(this.running ? "DND" : "Online");
+                                // sleep for 15 seconds
+                                yield sleep();
                             }
-                            return null;
+                        });
+                    }
+                    /**
+                     * Create a set of switches to take in whether to check for their status
+                     * @returns n switches with values from names
+                     */
+                    button_set(names) {
+                        return names.map((name) => {
+                            return new Settings.Switch(name, "Set DND when this process runs", false, (new_val) => {
+                                this.settings.tracked_items[`${name}_btn`] = new_val;
+                            });
                         });
                     }
                 };
