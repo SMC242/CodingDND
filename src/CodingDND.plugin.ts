@@ -184,14 +184,17 @@ module.exports = (() => {
             getSettingsPanel() {
               return Settings.SettingPanel.build(
                 this.saveSettings.bind(this),
-                this.button_set([
-                  "Atom",
-                  "Visual Studio Code",
-                  "IntelliJ",
-                  "Eclipse",
-                  "Visual Studio",
-                  "Pycharm",
-                ])
+                // this group is for selecting `targets`
+                new Settings.SettingGroup("Target Processes").append(
+                  ...this.button_set([
+                    "Atom",
+                    "Visual Studio Code",
+                    "IntelliJ",
+                    "Eclipse",
+                    "Visual Studio",
+                    "Pycharm",
+                  ])
+                )
               );
             }
 

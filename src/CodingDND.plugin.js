@@ -1,9 +1,9 @@
 /**
  * @name CodingDND
- * @invite https://joindtwm.net/join
- * @authorID 395598378387636234
+ * @invite AaMz4gp
+ * @authorId 395598378387636234
  * @website https://github.com/SMC242/CodingDND
- * @source https://github.com/SMC242/CodingDND/tree/master/src/dst/CodingDND.js
+ * @source https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js
  */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -70,7 +70,7 @@ module.exports = (() => {
             version: "0.0.0",
             description: "This plugin will set the Do Not Disturb status when you open an IDE. You must install `process-list` via NPM to use this plugin",
             github: "https://github.com/SMC242/CodingDND",
-            github_raw: "https://github.com/SMC242/CodingDND/tree/master/src/dist/CodingDND.js",
+            github_raw: "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js",
         },
         changelog: [
             { title: "New Stuff", items: ["Added more settings", "Added changelog"] },
@@ -152,14 +152,16 @@ module.exports = (() => {
                     load() { }
                     onLoad() { }
                     getSettingsPanel() {
-                        return Settings.SettingPanel.build(this.saveSettings.bind(this), this.button_set([
+                        return Settings.SettingPanel.build(this.saveSettings.bind(this), 
+                        // this group is for selecting `targets`
+                        new Settings.SettingGroup("Target Processes").append(...this.button_set([
                             "Atom",
                             "Visual Studio Code",
                             "IntelliJ",
                             "Eclipse",
                             "Visual Studio",
                             "Pycharm",
-                        ]));
+                        ])));
                     }
                     /**
                      * Get the targeted tasks that are running
@@ -167,6 +169,7 @@ module.exports = (() => {
                     check_tasks() {
                         return __awaiter(this, void 0, void 0, function* () {
                             const current_tasks = yield snap("name");
+                            console.log(`Checking tasks... Current tasks: ${current_tasks}`);
                             return current_tasks
                                 .map((value) => {
                                 return this.targets.includes(value) ? value : null;
@@ -195,14 +198,19 @@ module.exports = (() => {
                             let new_running = [];
                             while (true) {
                                 const current_targets = yield this.check_tasks();
+                                console.log(`Current targets: ${current_targets}`);
                                 // add the new tasks and remove the ones that have stopped
                                 this.running.forEach((value) => {
                                     if (current_targets.includes(value)) {
                                         new_running = new_running.concat(value);
                                     }
                                 });
+                                this.running = new_running;
+                                console.log(`New running: ${new_running}`);
                                 // set the status if running, remove status if not running
-                                this.set_status(this.running ? "DND" : "Online");
+                                const change_to = this.running ? "dnd" : "online";
+                                console.log(`New status: ${change_to}`);
+                                this.set_status(change_to);
                                 // sleep for 15 seconds
                                 yield sleep();
                             }
