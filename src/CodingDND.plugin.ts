@@ -6,22 +6,6 @@
  * @source https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js
  */
 
-// install process-list if not installed
-try {
-  var snap = require("process-list");
-} catch (error) {
-  // attempt to install it with npm
-  const { exec } = require("child_process");
-  exec("echo Attempting to install 'process-list' from NPM", (error) => {}); // notify user
-  exec("npm install process-list", (error) => {
-    if (error) {
-      // failed to install
-      console.log("Must install `process-list` from NPM to use CodingDND");
-      process.exit(1);
-    }
-  });
-}
-
 /**
 @cc_on
 @if (@_jscript) 
@@ -139,6 +123,8 @@ module.exports = (() => {
             targets: Array<string>;
             running: Array<string>;
             settings: settings_obj;
+            // @ts-ignore  this will get defined on_load
+            snap: Function;
 
             constructor() {
               super();
@@ -167,19 +153,47 @@ module.exports = (() => {
               return config.info.version;
             }
 
-            start() {
+            onStart() {
               Logger.log("Started");
               Patcher.before(Logger, "log", (t, a) => {
                 a[0] = "Patched Message: " + a[0];
               });
               this.loop();
             }
-            stop() {
+            onStop() {
               Logger.log("Stopped");
               Patcher.unpatchAll();
             }
-            load() {}
-            onLoad() {}
+            load() {
+              // install process-list if not installed
+              Logger.log("Getting process list");
+              try {
+                var { snapshot } = require("process-list");
+              } catch (error) {
+                // attempt to install it with npm
+                Logger.log("Failed to get process list");
+                const { exec } = require("child_process");
+                Logger.log("Attempting to install `process-list` from NPM"); // notify user
+                exec(
+                  "npm install process-list",
+                  { cwd: Bapi.Plugins.folder },
+                  (error) => {
+                    if (error) {
+                      // failed to install
+                      Logger.log(
+                        "You must install `process-list` from NPM to use CodingDND"
+                      );
+                      process.exit(1);
+                    } else {
+                      var { snapshot } = require("process-list");
+                    }
+                    this.snap = async (): Promise<Array<string>> =>
+                      await snapshot("name");
+                    Logger.log(`Snap: ${this.snap}`);
+                  }
+                );
+              }
+            }
 
             getSettingsPanel() {
               return Settings.SettingPanel.build(
@@ -202,7 +216,9 @@ module.exports = (() => {
              * Get the targeted tasks that are running
              */
             async check_tasks() {
-              const current_tasks = await snap("name");
+              Logger.log(`THis.snap: ${this.snap}`);
+              const current_tasks = await this.snap();
+              Logger.log(`Checking tasks... Current tasks: ${current_tasks}`);
               return current_tasks
                 .map((value) => {
                   return this.targets.includes(value) ? value : null;
@@ -231,14 +247,19 @@ module.exports = (() => {
               let new_running: Array<string> = [];
               while (true) {
                 const current_targets = await this.check_tasks();
+                console.log(`Current targets: ${current_targets}`);
                 // add the new tasks and remove the ones that have stopped
                 this.running.forEach((value) => {
                   if (current_targets.includes(value)) {
                     new_running = new_running.concat(value);
                   }
                 });
+                this.running = new_running;
+                console.log(`New running: ${new_running}`);
                 // set the status if running, remove status if not running
-                this.set_status(this.running ? "DND" : "Online");
+                const change_to: string = this.running ? "dnd" : "online";
+                console.log(`New status: ${change_to}`);
+                this.set_status(change_to);
 
                 // sleep for 15 seconds
                 await sleep();
