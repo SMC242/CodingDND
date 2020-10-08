@@ -1,9 +1,9 @@
 /**
  * @name CodingDND
- * @invite https://joindtwm.net/join
- * @authorID 395598378387636234
+ * @invite AaMz4gp
+ * @authorId 395598378387636234
  * @website https://github.com/SMC242/CodingDND
- * @source https://github.com/SMC242/CodingDND/tree/master/src/dst/CodingDND.js
+ * @source https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js
  */
 
 // install process-list if not installed
@@ -70,7 +70,7 @@ module.exports = (() => {
         "This plugin will set the Do Not Disturb status when you open an IDE. You must install `process-list` via NPM to use this plugin",
       github: "https://github.com/SMC242/CodingDND",
       github_raw:
-        "https://github.com/SMC242/CodingDND/tree/master/src/dist/CodingDND.js",
+        "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js",
     },
     changelog: [
       { title: "New Stuff", items: ["Added more settings", "Added changelog"] },
