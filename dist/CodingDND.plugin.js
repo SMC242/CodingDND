@@ -14,22 +14,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-// install process-list if not installed
-try {
-    var snap = require("process-list");
-}
-catch (error) {
-    // attempt to install it with npm
-    const { exec } = require("child_process");
-    exec("echo Attempting to install 'process-list' from NPM", (error) => { }); // notify user
-    exec("npm install process-list", (error) => {
-        if (error) {
-            // failed to install
-            console.log("Must install `process-list` from NPM to use CodingDND");
-            process.exit(1);
-        }
-    });
-}
 /**
 @cc_on
 @if (@_jscript)
@@ -138,19 +122,42 @@ module.exports = (() => {
                     getVersion() {
                         return config.info.version;
                     }
-                    start() {
+                    onStart() {
                         Logger.log("Started");
                         Patcher.before(Logger, "log", (t, a) => {
                             a[0] = "Patched Message: " + a[0];
                         });
                         this.loop();
                     }
-                    stop() {
+                    onStop() {
                         Logger.log("Stopped");
                         Patcher.unpatchAll();
                     }
-                    load() { }
-                    onLoad() { }
+                    load() {
+                        // install process-list if not installed
+                        Logger.log("Getting process list");
+                        try {
+                            var { snapshot } = require("process-list");
+                        }
+                        catch (error) {
+                            // attempt to install it with npm
+                            Logger.log("Failed to get process list");
+                            const { exec } = require("child_process");
+                            Logger.log("Attempting to install `process-list` from NPM"); // notify user
+                            exec("npm install process-list", { cwd: Bapi.Plugins.folder }, (error) => {
+                                if (error) {
+                                    // failed to install
+                                    Logger.log("You must install `process-list` from NPM to use CodingDND");
+                                    process.exit(1);
+                                }
+                                else {
+                                    var { snapshot } = require("process-list");
+                                }
+                                this.snap = () => __awaiter(this, void 0, void 0, function* () { return yield snapshot("name"); });
+                                Logger.log(`Snap: ${this.snap}`);
+                            });
+                        }
+                    }
                     getSettingsPanel() {
                         return Settings.SettingPanel.build(this.saveSettings.bind(this), 
                         // this group is for selecting `targets`
@@ -168,8 +175,9 @@ module.exports = (() => {
                      */
                     check_tasks() {
                         return __awaiter(this, void 0, void 0, function* () {
-                            const current_tasks = yield snap("name");
-                            console.log(`Checking tasks... Current tasks: ${current_tasks}`);
+                            Logger.log(`THis.snap: ${this.snap}`);
+                            const current_tasks = yield this.snap();
+                            Logger.log(`Checking tasks... Current tasks: ${current_tasks}`);
                             return current_tasks
                                 .map((value) => {
                                 return this.targets.includes(value) ? value : null;
