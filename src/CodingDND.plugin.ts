@@ -6,6 +6,8 @@
  * @source https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js
  */
 
+import { runInThisContext } from "vm";
+
 /**
 @cc_on
 @if (@_jscript) 
@@ -194,10 +196,12 @@ module.exports = (() => {
                 ]),
               };
               // get the names of the processes
-              this.targets = Array.from(
-                this.settings.tracked_items,
-                (pair) => pair[0]
-              );
+              // @ts-ignore  the output will never contain `undefined` due to filter, but ts is reading the overload of filter
+              this.targets = Array.from(this.settings.tracked_items, (pair) => {
+                if (pair[1]) {
+                  return pair[0];
+                }
+              }).filter((value) => value);
             }
 
             getName() {
@@ -227,6 +231,7 @@ module.exports = (() => {
             load() {}
 
             getSettingsPanel() {
+              Logger.log("Creating panel");
               return Settings.SettingPanel.build(
                 this.saveSettings.bind(this),
                 // this group is for selecting `targets`
@@ -295,43 +300,45 @@ module.exports = (() => {
              * @returns n switches with values from names
              */
             button_set(): Array<object> {
-              return Array.from(
+              const v = Array.from(
                 this.settings.tracked_items,
                 (pair) => pair[0]
               ).map((name) => {
                 return new Settings.Switch(
                   name,
                   "Set DND when this process runs",
-                  this.settings.tracked_items[name],
+                  this.settings.tracked_items.get(name),
                   (new_val: boolean) => {
-                    console.log(`This in cb: ${this}, type: ${typeof this}`);
-                    const f = new_val ? this.track : this.untrack;
-                    Logger.log(f);
-                    f(name);
+                    Logger.log("entered CB");
+                    (new_val ? this.track : this.untrack)(name);
                   }
                 );
               });
+              Logger.log(v);
+              return v;
             }
 
             /**
              * Track a process
              * @param name The process to add
              */
-            track(name: string) {
+            track(name: string, context?: CodingDND) {
+              context = context || this;
               Logger.log("tracked");
               console.log(`This: ${this}`);
-              this.settings.tracked_items[name] = true;
-              this.targets.push(name);
+              context.settings.tracked_items[name] = true;
+              context.targets.push(name);
             }
 
             /**
              * Untrack a process
              * @param name The process to remove
              */
-            untrack(name: string) {
+            untrack(name: string, context?: CodingDND) {
+              context = context || this;
               Logger.log("untracked");
-              this.settings.tracked_items[name] = false;
-              this.targets.filter((value) => value !== name);
+              context.settings.tracked_items[name] = false;
+              context.targets.filter((value) => value !== name);
             }
           };
         };
