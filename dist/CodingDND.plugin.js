@@ -40,6 +40,49 @@ WScript.Quit();
 */
 // @ts-ignore
 const Bapi = BdApi;
+const { exec } = require("child_process");
+/**
+ * System agnostic method of finding all the process names
+ * @returns Promise<Array<string>> of process names
+ */
+function get_all_processes() {
+    return __awaiter(this, void 0, void 0, function* () {
+        /**
+         * Get the running process list and parse it into just the names. System agnostic
+         * @param system_specifics The relevant information of the current environment
+         * @returns Array<string> of process names
+         */
+        function parser(system_specifics) {
+            return __awaiter(this, void 0, void 0, function* () {
+                let processes = [];
+                const slicer = (row) => row.slice(...system_specifics.row_range); // get the end of the name/command column
+                // iterate over each row and parse it into the name only
+                exec(system_specifics.command, (err, stdout) => {
+                    const process_rows = stdout.split(system_specifics.line_ending);
+                    // there's 3 rows of table formatting so start from i = 3
+                    for (let i = system_specifics.table_start; i < process_rows.length; i++) {
+                        processes.push(slicer(process_rows[i]).trim());
+                    }
+                });
+                yield new Promise((r) => setTimeout(r, 300)); // block function until tasklist finishes
+                return processes;
+            });
+        }
+        const windows_settings = {
+            row_range: [0, 29],
+            table_start: 3,
+            line_ending: "\r\n",
+            command: "tasklist",
+        };
+        const linux_settings = {
+            row_range: [67, undefined],
+            table_start: 3,
+            line_ending: "\r\n",
+            command: "ps -aux",
+        };
+        return yield parser(process.platform === "win32" ? windows_settings : linux_settings);
+    });
+}
 module.exports = (() => {
     const config = {
         info: {
@@ -105,7 +148,14 @@ module.exports = (() => {
                         this.running = [];
                         this.targets = [];
                         this.settings = (_a = Bapi.loadData("CodingDND", "settings")) !== null && _a !== void 0 ? _a : {
-                            tracked_items: new Map(),
+                            tracked_items: new Map([
+                                ["Atom", false],
+                                ["Visual Studio Code", false],
+                                ["IntelliJ", false],
+                                ["Eclipse", false],
+                                ["Visual Studio", false],
+                                ["Pycharm", false],
+                            ]),
                         };
                         // get the names of the processes
                         this.targets = Array.from(this.settings.tracked_items, (pair) => pair[0]);
@@ -133,51 +183,18 @@ module.exports = (() => {
                         Logger.log("Stopped");
                         Patcher.unpatchAll();
                     }
-                    load() {
-                        // install process-list if not installed
-                        Logger.log("Getting process list");
-                        try {
-                            var { snapshot } = require("process-list");
-                        }
-                        catch (error) {
-                            // attempt to install it with npm
-                            Logger.log("Failed to get process list");
-                            const { exec } = require("child_process");
-                            Logger.log("Attempting to install `process-list` from NPM"); // notify user
-                            exec("npm install process-list", { cwd: Bapi.Plugins.folder }, (error) => {
-                                if (error) {
-                                    // failed to install
-                                    Logger.log("You must install `process-list` from NPM to use CodingDND");
-                                    process.exit(1);
-                                }
-                                else {
-                                    var { snapshot } = require("process-list");
-                                }
-                                this.snap = () => __awaiter(this, void 0, void 0, function* () { return yield snapshot("name"); });
-                                Logger.log(`Snap: ${this.snap}`);
-                            });
-                        }
-                    }
+                    load() { }
                     getSettingsPanel() {
                         return Settings.SettingPanel.build(this.saveSettings.bind(this), 
                         // this group is for selecting `targets`
-                        new Settings.SettingGroup("Target Processes").append(...this.button_set([
-                            "Atom",
-                            "Visual Studio Code",
-                            "IntelliJ",
-                            "Eclipse",
-                            "Visual Studio",
-                            "Pycharm",
-                        ])));
+                        new Settings.SettingGroup("Target Processes").append(...this.button_set()));
                     }
                     /**
                      * Get the targeted tasks that are running
                      */
                     check_tasks() {
                         return __awaiter(this, void 0, void 0, function* () {
-                            Logger.log(`THis.snap: ${this.snap}`);
-                            const current_tasks = yield this.snap();
-                            Logger.log(`Checking tasks... Current tasks: ${current_tasks}`);
+                            const current_tasks = yield get_all_processes();
                             return current_tasks
                                 .map((value) => {
                                 return this.targets.includes(value) ? value : null;
@@ -216,7 +233,9 @@ module.exports = (() => {
                                 this.running = new_running;
                                 console.log(`New running: ${new_running}`);
                                 // set the status if running, remove status if not running
-                                const change_to = this.running ? "dnd" : "online";
+                                const change_to = this.running.length // an empty list is truthy BRUH
+                                    ? "dnd"
+                                    : "online";
                                 console.log(`New status: ${change_to}`);
                                 this.set_status(change_to);
                                 // sleep for 15 seconds
@@ -228,12 +247,34 @@ module.exports = (() => {
                      * Create a set of switches to take in whether to check for their status
                      * @returns n switches with values from names
                      */
-                    button_set(names) {
-                        return names.map((name) => {
-                            return new Settings.Switch(name, "Set DND when this process runs", false, (new_val) => {
-                                this.settings.tracked_items[`${name}_btn`] = new_val;
+                    button_set() {
+                        return Array.from(this.settings.tracked_items, (pair) => pair[0]).map((name) => {
+                            return new Settings.Switch(name, "Set DND when this process runs", this.settings.tracked_items[name], (new_val) => {
+                                console.log(`This in cb: ${this}, type: ${typeof this}`);
+                                const f = new_val ? this.track : this.untrack;
+                                Logger.log(f);
+                                f(name);
                             });
                         });
+                    }
+                    /**
+                     * Track a process
+                     * @param name The process to add
+                     */
+                    track(name) {
+                        Logger.log("tracked");
+                        console.log(`This: ${this}`);
+                        this.settings.tracked_items[name] = true;
+                        this.targets.push(name);
+                    }
+                    /**
+                     * Untrack a process
+                     * @param name The process to remove
+                     */
+                    untrack(name) {
+                        Logger.log("untracked");
+                        this.settings.tracked_items[name] = false;
+                        this.targets.filter((value) => value !== name);
                     }
                 };
             };

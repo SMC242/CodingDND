@@ -184,7 +184,14 @@ module.exports = (() => {
               this.running = [];
               this.targets = [];
               this.settings = Bapi.loadData("CodingDND", "settings") ?? {
-                tracked_items: new Map(),
+                tracked_items: new Map([
+                  ["Atom", false],
+                  ["Visual Studio Code", false],
+                  ["IntelliJ", false],
+                  ["Eclipse", false],
+                  ["Visual Studio", false],
+                  ["Pycharm", false],
+                ]),
               };
               // get the names of the processes
               this.targets = Array.from(
@@ -224,14 +231,7 @@ module.exports = (() => {
                 this.saveSettings.bind(this),
                 // this group is for selecting `targets`
                 new Settings.SettingGroup("Target Processes").append(
-                  ...this.button_set([
-                    "Atom",
-                    "Visual Studio Code",
-                    "IntelliJ",
-                    "Eclipse",
-                    "Visual Studio",
-                    "Pycharm",
-                  ])
+                  ...this.button_set()
                 )
               );
             }
@@ -279,7 +279,9 @@ module.exports = (() => {
                 this.running = new_running;
                 console.log(`New running: ${new_running}`);
                 // set the status if running, remove status if not running
-                const change_to: string = this.running ? "dnd" : "online";
+                const change_to: string = this.running.length // an empty list is truthy BRUH
+                  ? "dnd"
+                  : "online";
                 console.log(`New status: ${change_to}`);
                 this.set_status(change_to);
 
@@ -292,17 +294,44 @@ module.exports = (() => {
              * Create a set of switches to take in whether to check for their status
              * @returns n switches with values from names
              */
-            button_set(names: Array<string>): Array<object> {
-              return names.map((name) => {
+            button_set(): Array<object> {
+              return Array.from(
+                this.settings.tracked_items,
+                (pair) => pair[0]
+              ).map((name) => {
                 return new Settings.Switch(
                   name,
                   "Set DND when this process runs",
-                  false,
+                  this.settings.tracked_items[name],
                   (new_val: boolean) => {
-                    this.settings.tracked_items[`${name}_btn`] = new_val;
+                    console.log(`This in cb: ${this}, type: ${typeof this}`);
+                    const f = new_val ? this.track : this.untrack;
+                    Logger.log(f);
+                    f(name);
                   }
                 );
               });
+            }
+
+            /**
+             * Track a process
+             * @param name The process to add
+             */
+            track(name: string) {
+              Logger.log("tracked");
+              console.log(`This: ${this}`);
+              this.settings.tracked_items[name] = true;
+              this.targets.push(name);
+            }
+
+            /**
+             * Untrack a process
+             * @param name The process to remove
+             */
+            untrack(name: string) {
+              Logger.log("untracked");
+              this.settings.tracked_items[name] = false;
+              this.targets.filter((value) => value !== name);
             }
           };
         };
