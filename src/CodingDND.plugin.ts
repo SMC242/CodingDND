@@ -91,8 +91,18 @@ async function get_all_processes(): Promise<Array<string>> {
   );
 }
 
+interface tracked {
+  [name: string]: boolean;
+}
+
+/**
+ * @active_status must be one of: ["online", "idle", "invisible", "dnd"]
+ * @inactive_status must be one of: ["online", "idle", "invisible", "dnd"]
+ */
 interface settings_obj {
-  tracked_items: Map<string, boolean>;
+  tracked_items: tracked;
+  active_status: string;
+  inactive_status: string;
 }
 
 module.exports = (() => {
@@ -186,14 +196,16 @@ module.exports = (() => {
               this.running = [];
               this.targets = [];
               this.settings = Bapi.loadData("CodingDND", "settings") ?? {
-                tracked_items: new Map([
-                  ["Atom", false],
-                  ["Visual Studio Code", false],
-                  ["IntelliJ", false],
-                  ["Eclipse", false],
-                  ["Visual Studio", false],
-                  ["Pycharm", false],
-                ]),
+                tracked_items: {
+                  "Visual Studio Code": false,
+                  Atom: false,
+                  IntelliJ: false,
+                  Eclipse: false,
+                  Pycharm: false,
+                  "Visual Studio": false,
+                },
+                active_status: "dnd",
+                inactive_status: "online",
               };
               // get the names of the processes
               // @ts-ignore  the output will never contain `undefined` due to filter, but ts is reading the overload of filter
@@ -322,23 +334,20 @@ module.exports = (() => {
              * Track a process
              * @param name The process to add
              */
-            track(name: string, context?: CodingDND) {
-              context = context || this;
+            track(name: string) {
               Logger.log("tracked");
-              console.log(`This: ${this}`);
-              context.settings.tracked_items[name] = true;
-              context.targets.push(name);
+              this.settings.tracked_items.set(name, true);
+              this.targets.push(name);
             }
 
             /**
              * Untrack a process
              * @param name The process to remove
              */
-            untrack(name: string, context?: CodingDND) {
-              context = context || this;
+            untrack(name: string) {
               Logger.log("untracked");
-              context.settings.tracked_items[name] = false;
-              context.targets.filter((value) => value !== name);
+              this.settings.tracked_items.set(name, false);
+              this.targets.filter((value) => value !== name);
             }
           };
         };

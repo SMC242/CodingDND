@@ -1,4 +1,3 @@
-"use strict";
 /**
  * @name CodingDND
  * @invite AaMz4gp
