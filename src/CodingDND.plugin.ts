@@ -33,6 +33,61 @@ WScript.Quit();
 
 // @ts-ignore
 const Bapi = BdApi;
+const { exec } = require("child_process");
+
+/**
+ * System agnostic method of finding all the process names
+ * @returns Promise<Array<string>> of process names
+ */
+async function get_all_processes(): Promise<Array<string>> {
+  interface sys_settings {
+    row_range: [number | undefined, number | undefined]; // where to slice the row to get the process name. Pass undefined to not set a limit
+    table_start: number; // the line after the table boilerplate ends
+    line_ending: string; // how the line ends E.G `\n`
+    command: string; // the name of the command that gets the process list
+  }
+
+  /**
+   * Get the running process list and parse it into just the names. System agnostic
+   * @param system_specifics The relevant information of the current environment
+   * @returns Array<string> of process names
+   */
+  async function parser(
+    system_specifics: sys_settings
+  ): Promise<Array<string>> {
+    let processes: Array<string> = [];
+    const slicer = (row: string) => row.slice(...system_specifics.row_range); // get the end of the name/command column
+
+    // iterate over each row and parse it into the name only
+    exec(system_specifics.command, (err, stdout: string) => {
+      const process_rows: Array<string> = stdout.split(
+        system_specifics.line_ending
+      );
+      // there's 3 rows of table formatting so start from i = 3
+      for (let i = system_specifics.table_start; i < process_rows.length; i++) {
+        processes.push(slicer(process_rows[i]).trim());
+      }
+    });
+    await new Promise((r) => setTimeout(r, 300)); // block function until tasklist finishes
+    return processes;
+  }
+
+  const windows_settings: sys_settings = {
+    row_range: [0, 29],
+    table_start: 3,
+    line_ending: "\r\n",
+    command: "tasklist",
+  };
+  const linux_settings: sys_settings = {
+    row_range: [67, undefined],
+    table_start: 3,
+    line_ending: "\r\n",
+    command: "ps -aux",
+  };
+  return await parser(
+    process.platform === "win32" ? windows_settings : linux_settings
+  );
+}
 
 interface settings_obj {
   tracked_items: Map<string, boolean>;
@@ -123,8 +178,6 @@ module.exports = (() => {
             targets: Array<string>;
             running: Array<string>;
             settings: settings_obj;
-            // @ts-ignore  this will get defined on_load
-            snap: Function;
 
             constructor() {
               super();
@@ -164,36 +217,7 @@ module.exports = (() => {
               Logger.log("Stopped");
               Patcher.unpatchAll();
             }
-            load() {
-              // install process-list if not installed
-              Logger.log("Getting process list");
-              try {
-                var { snapshot } = require("process-list");
-              } catch (error) {
-                // attempt to install it with npm
-                Logger.log("Failed to get process list");
-                const { exec } = require("child_process");
-                Logger.log("Attempting to install `process-list` from NPM"); // notify user
-                exec(
-                  "npm install process-list",
-                  { cwd: Bapi.Plugins.folder },
-                  (error) => {
-                    if (error) {
-                      // failed to install
-                      Logger.log(
-                        "You must install `process-list` from NPM to use CodingDND"
-                      );
-                      process.exit(1);
-                    } else {
-                      var { snapshot } = require("process-list");
-                    }
-                    this.snap = async (): Promise<Array<string>> =>
-                      await snapshot("name");
-                    Logger.log(`Snap: ${this.snap}`);
-                  }
-                );
-              }
-            }
+            load() {}
 
             getSettingsPanel() {
               return Settings.SettingPanel.build(
@@ -216,9 +240,7 @@ module.exports = (() => {
              * Get the targeted tasks that are running
              */
             async check_tasks() {
-              Logger.log(`THis.snap: ${this.snap}`);
-              const current_tasks = await this.snap();
-              Logger.log(`Checking tasks... Current tasks: ${current_tasks}`);
+              const current_tasks = await get_all_processes();
               return current_tasks
                 .map((value) => {
                   return this.targets.includes(value) ? value : null;
