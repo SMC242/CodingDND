@@ -4,7 +4,6 @@
   "description": "This BetterDiscord plugin will set your status to Do Not Disturb when you start an IDE",
   "main": "release/CodingDND.plugin.js",
   "dependencies": {
-    "process-list": "^2.0.0"
   },
   "devDependencies": {
     "@types/bandagedbd__bdapi": "^0.2.2",
@@ -13,7 +12,8 @@
   },
   "scripts": {
     "tsc": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "mvf": "xcopy .\\dist\\CodingDND.plugin.js C:\\Users\\FiercePC\\AppData\\Roaming\\BetterDiscord\\plugins"
   },
   "repository": {
     "type": "git",
