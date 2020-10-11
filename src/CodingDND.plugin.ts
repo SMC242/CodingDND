@@ -311,6 +311,7 @@ module.exports = (() => {
                 this.set_status(change_to);
 
                 // sleep for 15 seconds
+                new_running = [];
                 await sleep();
               }
             }
