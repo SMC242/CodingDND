@@ -33,13 +33,14 @@ WScript.Quit();
 
 // @ts-ignore
 const Bapi = BdApi;
-const { exec } = require("child_process");
+const { execSync } = require("child_process");
 
 /**
  * System agnostic method of finding all the process names
  * @returns The process names
  */
 async function get_all_processes(): Promise<Array<string>> {
+  // internal interface for defining system-specific info about the task list commands
   interface sys_settings {
     row_range: [number | undefined, number | undefined]; // where to slice the row to get the process name. Pass undefined to not set a limit
     table_start: number; // the line after the table boilerplate ends
@@ -47,6 +48,7 @@ async function get_all_processes(): Promise<Array<string>> {
     command: string; // the name of the command that gets the process list
   }
 
+  // this is the internal part
   /**
    * Get the running process list and parse it into just the names. System agnostic
    * @param system_specifics The relevant information of the current environment
@@ -56,34 +58,36 @@ async function get_all_processes(): Promise<Array<string>> {
     system_specifics: sys_settings
   ): Promise<Array<string>> {
     let processes: Array<string> = [];
+
+    // this returns a buffer which is converted to string
+    const raw_output = execSync(system_specifics.command).toString();
+
+    // parsing functions here
     const slicer = (row: string) => row.slice(...system_specifics.row_range); // get the end of the name/command column
 
     // iterate over each row and parse it into the name only
-    exec(system_specifics.command, (err, stdout: string) => {
-      const process_rows: Array<string> = stdout.split(
-        system_specifics.line_ending
-      );
-      // there's 3 rows of table formatting so start from i = 3
-      for (let i = system_specifics.table_start; i < process_rows.length; i++) {
-        processes.push(slicer(process_rows[i]).trim());
-      }
-    });
-    await new Promise((r) => setTimeout(r, 300)); // block function until tasklist finishes
+    const process_rows = raw_output.split(system_specifics.line_ending);
+    for (let i = system_specifics.table_start; i < process_rows.length; i++) {
+      processes.push(slicer(process_rows[i]).trim());
+    }
     return processes;
   }
 
+  // system settings defined here
   const windows_settings: sys_settings = {
     row_range: [0, 29],
-    table_start: 3,
+    table_start: 3, // there's 3 rows of boilerplate
     line_ending: "\r\n",
     command: "tasklist",
   };
   const linux_settings: sys_settings = {
     row_range: [67, undefined],
-    table_start: 3,
-    line_ending: "\r\n",
+    table_start: 1, // there's 1 row of boilerplate
+    line_ending: "\n",
     command: "ps -aux",
   };
+
+  // decide which platform is being used
   return await parser(
     process.platform === "win32" ? windows_settings : linux_settings
   );
@@ -109,7 +113,9 @@ interface tracked_aliases {
 }
 
 const aliases: tracked_aliases = {
-  "Visual Studio Code": "Visual Studio Code",
+  "Visual Studio Code": "Code.exe",
+  Atom: "atom.exe",
+  "Visual Studio": "devenv.exe",
 };
 
 module.exports = (() => {
