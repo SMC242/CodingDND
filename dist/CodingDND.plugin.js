@@ -35,7 +35,7 @@ const Bapi = BdApi;
 const { exec } = require("child_process");
 /**
  * System agnostic method of finding all the process names
- * @returns Promise<Array<string>> of process names
+ * @returns The process names
  */
 async function get_all_processes() {
     /**
@@ -136,14 +136,16 @@ module.exports = (() => {
                         this.running = [];
                         this.targets = [];
                         this.settings = (_a = Bapi.loadData("CodingDND", "settings")) !== null && _a !== void 0 ? _a : {
-                            tracked_items: new Map([
-                                ["Atom", false],
-                                ["Visual Studio Code", false],
-                                ["IntelliJ", false],
-                                ["Eclipse", false],
-                                ["Visual Studio", false],
-                                ["Pycharm", false],
-                            ]),
+                            tracked_items: {
+                                "Visual Studio Code": false,
+                                Atom: false,
+                                IntelliJ: false,
+                                Eclipse: false,
+                                Pycharm: false,
+                                "Visual Studio": false,
+                            },
+                            active_status: "dnd",
+                            inactive_status: "online",
                         };
                         // get the names of the processes
                         // @ts-ignore  the output will never contain `undefined` due to filter, but ts is reading the overload of filter
@@ -236,9 +238,8 @@ module.exports = (() => {
                      * @returns n switches with values from names
                      */
                     button_set() {
-                        const v = Array.from(this.settings.tracked_items, (pair) => pair[0]).map((name) => {
-                            return new Settings.Switch(name, "Set DND when this process runs", this.settings.tracked_items.get(name), (new_val) => {
-                                Logger.log("entered CB");
+                        const v = Object.keys(this.settings.tracked_items).map((name) => {
+                            return new Settings.Switch(name, "Set 'Do Not Disturb' when this process runs", this.settings.tracked_items[name], (new_val) => {
                                 (new_val ? this.track : this.untrack)(name);
                             });
                         });
@@ -246,25 +247,26 @@ module.exports = (() => {
                         return v;
                     }
                     /**
-                     * Track a process
-                     * @param name The process to add
+                     * Register a new process to track
+                     * @param name The name to register
                      */
-                    track(name, context) {
-                        context = context || this;
-                        Logger.log("tracked");
-                        console.log(`This: ${this}`);
-                        context.settings.tracked_items[name] = true;
-                        context.targets.push(name);
+                    track(name) {
+                        Logger.log(`Tracked ${name}`);
+                        let inst = Bapi.getPlugin("CodingDND"); // for some reason, the context isn't defined in this function. I had to define ti by getting BdApi's version instead
+                        inst.settings.tracked_items[name] = true;
+                        inst.targets.push(name);
                     }
                     /**
-                     * Untrack a process
-                     * @param name The process to remove
+                     * Unregister a process from tracking
+                     * @param name The name to unregister
                      */
-                    untrack(name, context) {
-                        context = context || this;
-                        Logger.log("untracked");
-                        context.settings.tracked_items[name] = false;
-                        context.targets.filter((value) => value !== name);
+                    untrack(name) {
+                        Logger.log(`Untracked ${name}`);
+                        let inst = Bapi.getPlugin("CodingDND");
+                        inst.settings.tracked_items[name] = false;
+                        inst.targets = inst.targets.filter((value) => {
+                            value !== name;
+                        });
                     }
                 };
             };

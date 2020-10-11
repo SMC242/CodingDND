@@ -39,7 +39,7 @@ const { exec } = require("child_process");
 
 /**
  * System agnostic method of finding all the process names
- * @returns Promise<Array<string>> of process names
+ * @returns The process names
  */
 async function get_all_processes(): Promise<Array<string>> {
   interface sys_settings {
@@ -328,8 +328,9 @@ module.exports = (() => {
              */
             track(name) {
               Logger.log(`Tracked ${name}`);
-              this.settings.tracked_items[name] = true;
-              this.targets.push(name);
+              let inst: CodingDND = Bapi.getPlugin("CodingDND"); // for some reason, the context isn't defined in this function. I had to define ti by getting BdApi's version instead
+              inst.settings.tracked_items[name] = true;
+              inst.targets.push(name);
             }
 
             /**
@@ -338,8 +339,9 @@ module.exports = (() => {
              */
             untrack(name) {
               Logger.log(`Untracked ${name}`);
-              this.settings.tracked_items[name] = false;
-              this.targets = this.targets.filter((value) => {
+              let inst: CodingDND = Bapi.getPlugin("CodingDND");
+              inst.settings.tracked_items[name] = false;
+              inst.targets = inst.targets.filter((value) => {
                 value !== name;
               });
             }
