@@ -6,8 +6,6 @@
  * @source https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js
  */
 
-import { runInThisContext } from "vm";
-
 /**
 @cc_on
 @if (@_jscript) 
@@ -92,14 +90,27 @@ async function get_all_processes(): Promise<Array<string>> {
 }
 
 /**
- * @active_status must be one of: ["online", "idle", "invisible", "dnd"]
- * @inactive_status must be one of: ["online", "idle", "invisible", "dnd"]
+ * @tracked_items the name of the target and whether it is currently being tracked
+ * @active_status The status to set when one of the targets is running. Must be one of: ["online", "idle", "invisible", "dnd"]
+ * @inactive_status The status to set when one of the targets is not running. Must be one of: ["online", "idle", "invisible", "dnd"]
  */
 interface settings_obj {
   tracked_items: { [name: string]: boolean };
   active_status: string;
   inactive_status: string;
 }
+
+/**
+ * Used for representing tracked processes. Processes will not always have the same name as the app so this is necessary.
+ * @alias the name that the user sees. This covers the actual executable name.
+ */
+interface tracked_aliases {
+  [alias: string]: string;
+}
+
+const aliases: tracked_aliases = {
+  "Visual Studio Code": "Visual Studio Code",
+};
 
 module.exports = (() => {
   const config = {
@@ -291,6 +302,7 @@ module.exports = (() => {
                 });
                 this.running = new_running;
                 console.log(`New running: ${new_running}`);
+
                 // set the status if running, remove status if not running
                 const change_to: string = this.running.length // an empty list is truthy BRUH
                   ? "dnd"
