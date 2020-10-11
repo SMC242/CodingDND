@@ -91,16 +91,12 @@ async function get_all_processes(): Promise<Array<string>> {
   );
 }
 
-interface tracked {
-  [name: string]: boolean;
-}
-
 /**
  * @active_status must be one of: ["online", "idle", "invisible", "dnd"]
  * @inactive_status must be one of: ["online", "idle", "invisible", "dnd"]
  */
 interface settings_obj {
-  tracked_items: tracked;
+  tracked_items: { [name: string]: boolean };
   active_status: string;
   inactive_status: string;
 }
@@ -312,16 +308,12 @@ module.exports = (() => {
              * @returns n switches with values from names
              */
             button_set(): Array<object> {
-              const v = Array.from(
-                this.settings.tracked_items,
-                (pair) => pair[0]
-              ).map((name) => {
+              const v = Object.keys(this.settings.tracked_items).map((name) => {
                 return new Settings.Switch(
                   name,
-                  "Set DND when this process runs",
-                  this.settings.tracked_items.get(name),
-                  (new_val: boolean) => {
-                    Logger.log("entered CB");
+                  "Set 'Do Not Disturb' when this process runs",
+                  this.settings.tracked_items[name],
+                  (new_val) => {
                     (new_val ? this.track : this.untrack)(name);
                   }
                 );
@@ -331,23 +323,25 @@ module.exports = (() => {
             }
 
             /**
-             * Track a process
-             * @param name The process to add
+             * Register a new process to track
+             * @param name The name to register
              */
-            track(name: string) {
-              Logger.log("tracked");
-              this.settings.tracked_items.set(name, true);
+            track(name) {
+              Logger.log(`Tracked ${name}`);
+              this.settings.tracked_items[name] = true;
               this.targets.push(name);
             }
 
             /**
-             * Untrack a process
-             * @param name The process to remove
+             * Unregister a process from tracking
+             * @param name The name to unregister
              */
-            untrack(name: string) {
-              Logger.log("untracked");
-              this.settings.tracked_items.set(name, false);
-              this.targets.filter((value) => value !== name);
+            untrack(name) {
+              Logger.log(`Untracked ${name}`);
+              this.settings.tracked_items[name] = false;
+              this.targets = this.targets.filter((value) => {
+                value !== name;
+              });
             }
           };
         };
