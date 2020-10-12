@@ -272,17 +272,6 @@ module.exports = (() => {
             }
             load() {}
 
-            getSettingsPanel() {
-              Logger.log("Creating panel");
-              return Settings.SettingPanel.build(
-                this.saveSettings.bind(this),
-                // this group is for selecting `targets`
-                new Settings.SettingGroup("Target Processes").append(
-                  ...this.button_set()
-                )
-              );
-            }
-
             /**
              * Set the user's status
              * @param set_to The status to set. This may be dnd, online, invisible, or idle
@@ -350,6 +339,20 @@ module.exports = (() => {
                 // sleep for 15 seconds
                 await sleep();
               }
+            }
+
+            getSettingsPanel() {
+              return Settings.SettingPanel.build(
+                this.save_settings,
+                // this group is for selecting `targets`
+                new Settings.SettingGroup("Target Processes").append(
+                  ...this.button_set()
+                )
+              );
+            }
+
+            async save_settings(new_settings: settings_obj): Promise<void> {
+              Bapi.saveData("CodingDND", "settings", new_settings);
             }
 
             /**
