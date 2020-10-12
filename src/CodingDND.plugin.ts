@@ -276,18 +276,6 @@ module.exports = (() => {
             }
 
             /**
-             * Get the targeted tasks that are running
-             */
-            async check_tasks(): Promise<Array<string>> {
-              const current_tasks = await get_all_processes();
-              return current_tasks
-                .map((value: string) => {
-                  return this.targets.includes(value) ? value : null;
-                })
-                .filter(not_empty); // check if any of the values are truthy
-            }
-
-            /**
              * Set the user's status
              * @param set_to The status to set. This may be dnd, online, invisible, or idle
              */
@@ -301,13 +289,25 @@ module.exports = (() => {
             }
 
             /**
+             * Get the targeted tasks that are running
+             */
+            async check_tasks(): Promise<Array<string>> {
+              const current_tasks = await get_all_processes();
+              return current_tasks
+                .map((value: string) => {
+                  return this.targets.includes(value) ? value : null;
+                })
+                .filter(not_empty); // check if any of the values are truthy
+            }
+
+            /**
              * Continually check for a target being started or stopped
              */
             async loop() {
-              const sleep = () => new Promise((r) => setTimeout(r, 15000)); // sleep for 15 seconds
+              const sleep = () => new Promise((r) => setTimeout(r, 30000)); // sleep for 30 seconds
               while (true) {
+                // get the running targeted tasks
                 const current_targets: Array<string> = await this.check_tasks();
-                console.log(`Current targets: ${current_targets}`);
 
                 // remove the tasks that stopped
                 this.running = this.running
@@ -321,13 +321,13 @@ module.exports = (() => {
                     this.running.push(name);
                   }
                 });
-                console.log(`New running: ${this.running}`);
+                Logger.log(`Running targets detected: ${this.running}`);
 
                 // set the status if running, remove status if not running
                 const change_to = this.running.length // an empty list is truthy BRUH
                   ? "dnd"
                   : "online";
-                console.log(`New status: ${change_to}`);
+                console.log(`Setting new status: ${change_to}`);
                 this.set_status(change_to);
 
                 // sleep for 15 seconds
@@ -337,7 +337,7 @@ module.exports = (() => {
 
             /**
              * Create a set of switches to take in whether to check for their status
-             * @returns n switches with values from names
+             * @returns Settings.Switches that correspond to a tracked item
              */
             button_set(): Array<object> {
               return Object.keys(this.settings.tracked_items).map((name) => {
