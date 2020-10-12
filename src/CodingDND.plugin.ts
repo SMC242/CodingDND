@@ -32,7 +32,7 @@ WScript.Quit();
 */
 
 // @ts-ignore
-const Bapi = BdApi;
+const Bapi: any = BdApi;
 const { execSync } = require("child_process");
 
 /**
