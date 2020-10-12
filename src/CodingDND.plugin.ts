@@ -212,11 +212,13 @@ module.exports = (() => {
             targets: Array<string>;
             running: Array<string>;
             settings: settings_obj;
+            run_loop: boolean;
 
             constructor() {
               super();
               this.running = [];
               this.targets = [];
+              this.run_loop = true; // used to stop the loop
               this.settings = Bapi.loadData("CodingDND", "settings") ?? {
                 tracked_items: {
                   "Visual Studio Code": false,
@@ -256,10 +258,11 @@ module.exports = (() => {
               Patcher.before(Logger, "log", (t, a) => {
                 a[0] = "Patched Message: " + a[0];
               });
-              this.loop();
+              this.tracking_loop = this.loop();
             }
             onStop() {
               Logger.log("Stopped");
+              this.run_loop = false;
               Patcher.unpatchAll();
             }
             load() {}
@@ -306,6 +309,10 @@ module.exports = (() => {
             async loop() {
               const sleep = () => new Promise((r) => setTimeout(r, 30000)); // sleep for 30 seconds
               while (true) {
+                if (!this.run_loop) {
+                  return;
+                } // exit if cancelled
+
                 // get the running targeted tasks
                 const current_targets: Array<string> = await this.check_tasks();
 
