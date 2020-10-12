@@ -138,17 +138,26 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "0.0.0",
+      version: "0.25",
       description:
-        "This plugin will set the Do Not Disturb status when you open an IDE. You must install `process-list` via NPM to use this plugin",
+        "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND",
       github_raw:
         "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js",
+      source:
+        "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.ts",
     },
     changelog: [
-      { title: "New Stuff", items: ["Added more settings", "Added changelog"] },
+      {
+        title: "First release!",
+        items: [
+          "All IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
+          "The tracking loop should work.",
+          "Please tell me if you find any bugs.",
+        ],
+      },
     ],
-    main: "CodingDND.js",
+    main: "CodingDND.plugin.js",
   };
 
   // @ts-ignore
