@@ -124,7 +124,7 @@ const aliases: tracked_aliases = {
   "Visual Studio": "devenv.exe",
   IntelliJ: "idea64.exe", // !FIX: only works for 64bit. Maybe refactor tracked_aliases to be {string: Array<string>}
   Eclipse: "eclipse.exe",
-  Pycharm: "",
+  Pycharm: "pycharm64.exe",
 };
 
 module.exports = (() => {
