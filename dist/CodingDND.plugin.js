@@ -72,6 +72,9 @@ async function get_all_processes() {
     // decide which platform is being used
     return await parser(process.platform === "win32" ? windows_settings : linux_settings);
 }
+function not_empty(value) {
+    return value != undefined; // checks for both null and undefined
+}
 const aliases = {
     "Visual Studio Code": "Code.exe",
     Atom: "atom.exe",
@@ -157,12 +160,10 @@ module.exports = (() => {
                             inactive_status: "online",
                         };
                         // get the names of the processes
-                        // @ts-ignore  the output will never contain `undefined` due to filter, but ts is reading the overload of filter
-                        this.targets = Array.from(this.settings.tracked_items, (pair) => {
-                            if (pair[1]) {
-                                return pair[0];
-                            }
-                        }).filter((value) => value);
+                        this.targets = Array.from(Object.entries(this.settings.tracked_items), // get the key: value pairs
+                        (pair) => {
+                            return pair[1] ? pair[0] : null; // only add the name if it's tracked
+                        }).filter(not_empty); // only keep the strings
                     }
                     getName() {
                         return config.info.name;
@@ -203,7 +204,7 @@ module.exports = (() => {
                             .map((value) => {
                             return this.targets.includes(value) ? value : null;
                         })
-                            .filter((value) => value !== null); // check if any of the values are truthy
+                            .filter(not_empty); // check if any of the values are truthy
                     }
                     /**
                      * Set the user's status
@@ -226,7 +227,7 @@ module.exports = (() => {
                             // remove the tasks that stopped
                             this.running = this.running
                                 .map((old_val) => current_targets.includes(old_val) ? old_val : null)
-                                .filter((new_val) => new_val);
+                                .filter(not_empty);
                             // add the tasks that started
                             current_targets.map((name) => {
                                 if (!this.running.includes(name)) {

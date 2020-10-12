@@ -93,6 +93,12 @@ async function get_all_processes(): Promise<Array<string>> {
   );
 }
 
+function not_empty<incoming_t>(
+  value: incoming_t | null | undefined
+): value is incoming_t {
+  return value != undefined; // checks for both null and undefined
+}
+
 /**
  * @tracked_items the name of the target and whether it is currently being tracked
  * @active_status The status to set when one of the targets is running. Must be one of: ["online", "idle", "invisible", "dnd"]
@@ -229,7 +235,7 @@ module.exports = (() => {
                 if (pair[1]) {
                   return pair[0];
                 }
-              }).filter((value) => value);
+              ).filter(not_empty); // only keep the strings
             }
 
             getName() {
@@ -272,13 +278,13 @@ module.exports = (() => {
             /**
              * Get the targeted tasks that are running
              */
-            async check_tasks(): Array<string> {
+            async check_tasks(): Promise<Array<string>> {
               const current_tasks = await get_all_processes();
               return current_tasks
                 .map((value: string) => {
                   return this.targets.includes(value) ? value : null;
                 })
-                .filter((value: string): value is string => value !== null); // check if any of the values are truthy
+                .filter(not_empty); // check if any of the values are truthy
             }
 
             /**
@@ -308,7 +314,7 @@ module.exports = (() => {
                   .map((old_val) =>
                     current_targets.includes(old_val) ? old_val : null
                   )
-                  .filter((new_val) => new_val);
+                  .filter(not_empty);
                 // add the tasks that started
                 current_targets.map((name) => {
                   if (!this.running.includes(name)) {
