@@ -240,7 +240,7 @@ module.exports = (() => {
               this.targets = Array.from(
                 Object.entries(this.settings.tracked_items), // get the key: value pairs
                 (pair: [string, boolean]): string | null => {
-                  return pair[1] ? pair[0] : null; // only add the name if it's tracked
+                  return pair[1] ? aliases[pair[0]] : null; // only add the name's corresponding alias if it's tracked
                 }
               ).filter(not_empty); // only keep the strings
             }
