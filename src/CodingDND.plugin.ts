@@ -263,7 +263,7 @@ module.exports = (() => {
               Patcher.before(Logger, "log", (t, a) => {
                 a[0] = "Patched Message: " + a[0];
               });
-              this.tracking_loop = this.loop();
+              this.loop();
             }
             onStop() {
               Logger.log("Stopped");
@@ -331,7 +331,7 @@ module.exports = (() => {
 
                 // only make an API call if the status will change
                 if (change_to != this.last_status) {
-                  console.log(`Setting new status: ${change_to}`);
+                  Logger.log(`Setting new status: ${change_to}`);
                   this.set_status(change_to);
                   this.last_status = change_to;
                 }
