@@ -116,6 +116,9 @@ const aliases: tracked_aliases = {
   "Visual Studio Code": "Code.exe",
   Atom: "atom.exe",
   "Visual Studio": "devenv.exe",
+  IntelliJ: "",
+  Eclipse: "",
+  Pycharm: "",
 };
 
 module.exports = (() => {
@@ -331,7 +334,7 @@ module.exports = (() => {
              * @returns n switches with values from names
              */
             button_set(): Array<object> {
-              const v = Object.keys(this.settings.tracked_items).map((name) => {
+              return Object.keys(this.settings.tracked_items).map((name) => {
                 return new Settings.Switch(
                   name,
                   "Set 'Do Not Disturb' when this process runs",
@@ -350,8 +353,9 @@ module.exports = (() => {
             track(name) {
               Logger.log(`Tracked ${name}`);
               let inst: CodingDND = Bapi.getPlugin("CodingDND"); // for some reason, the context isn't defined in this function. I had to define ti by getting BdApi's version instead
-              inst.settings.tracked_items[name] = true;
-              inst.targets.push(name);
+              const alias = aliases[name];
+              inst.settings.tracked_items[alias] = true;
+              inst.targets.push(alias);
             }
 
             /**
@@ -361,9 +365,10 @@ module.exports = (() => {
             untrack(name) {
               Logger.log(`Untracked ${name}`);
               let inst: CodingDND = Bapi.getPlugin("CodingDND");
-              inst.settings.tracked_items[name] = false;
+              const alias = aliases[name];
+              inst.settings.tracked_items[alias] = false;
               inst.targets = inst.targets.filter((value) => {
-                value !== name;
+                value !== alias;
               });
             }
           };
