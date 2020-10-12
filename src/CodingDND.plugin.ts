@@ -269,13 +269,13 @@ module.exports = (() => {
             /**
              * Get the targeted tasks that are running
              */
-            async check_tasks() {
+            async check_tasks(): Array<string> {
               const current_tasks = await get_all_processes();
               return current_tasks
-                .map((value) => {
+                .map((value: string) => {
                   return this.targets.includes(value) ? value : null;
                 })
-                .filter((value) => value); // check if any of the values are truthy
+                .filter((value: string): value is string => value !== null); // check if any of the values are truthy
             }
 
             /**
@@ -296,28 +296,32 @@ module.exports = (() => {
              */
             async loop() {
               const sleep = () => new Promise((r) => setTimeout(r, 15000)); // sleep for 15 seconds
-              let new_running: Array<string> = [];
               while (true) {
-                const current_targets = await this.check_tasks();
+                const current_targets: Array<string> = await this.check_tasks();
                 console.log(`Current targets: ${current_targets}`);
-                // add the new tasks and remove the ones that have stopped
-                this.running.forEach((value) => {
-                  if (current_targets.includes(value)) {
-                    new_running = new_running.concat(value);
+
+                // remove the tasks that stopped
+                this.running = this.running
+                  .map((old_val) =>
+                    current_targets.includes(old_val) ? old_val : null
+                  )
+                  .filter((new_val) => new_val);
+                // add the tasks that started
+                current_targets.map((name) => {
+                  if (!this.running.includes(name)) {
+                    this.running.push(name);
                   }
                 });
-                this.running = new_running;
-                console.log(`New running: ${new_running}`);
+                console.log(`New running: ${this.running}`);
 
                 // set the status if running, remove status if not running
-                const change_to: string = this.running.length // an empty list is truthy BRUH
+                const change_to = this.running.length // an empty list is truthy BRUH
                   ? "dnd"
                   : "online";
                 console.log(`New status: ${change_to}`);
                 this.set_status(change_to);
 
                 // sleep for 15 seconds
-                new_running = [];
                 await sleep();
               }
             }
@@ -337,8 +341,6 @@ module.exports = (() => {
                   }
                 );
               });
-              Logger.log(v);
-              return v;
             }
 
             /**

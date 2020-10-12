@@ -5,7 +5,6 @@
  * @website https://github.com/SMC242/CodingDND
  * @source https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js
  */
-Object.defineProperty(exports, "__esModule", { value: true });
 /**
 @cc_on
 @if (@_jscript)
@@ -32,12 +31,13 @@ WScript.Quit();
 */
 // @ts-ignore
 const Bapi = BdApi;
-const { exec } = require("child_process");
+const { execSync } = require("child_process");
 /**
  * System agnostic method of finding all the process names
  * @returns The process names
  */
 async function get_all_processes() {
+    // this is the internal part
     /**
      * Get the running process list and parse it into just the names. System agnostic
      * @param system_specifics The relevant information of the current environment
@@ -45,18 +45,18 @@ async function get_all_processes() {
      */
     async function parser(system_specifics) {
         let processes = [];
+        // this returns a buffer which is converted to string
+        const raw_output = execSync(system_specifics.command).toString();
+        // parsing functions here
         const slicer = (row) => row.slice(...system_specifics.row_range); // get the end of the name/command column
         // iterate over each row and parse it into the name only
-        exec(system_specifics.command, (err, stdout) => {
-            const process_rows = stdout.split(system_specifics.line_ending);
-            // there's 3 rows of table formatting so start from i = 3
-            for (let i = system_specifics.table_start; i < process_rows.length; i++) {
-                processes.push(slicer(process_rows[i]).trim());
-            }
-        });
-        await new Promise((r) => setTimeout(r, 300)); // block function until tasklist finishes
+        const process_rows = raw_output.split(system_specifics.line_ending);
+        for (let i = system_specifics.table_start; i < process_rows.length; i++) {
+            processes.push(slicer(process_rows[i]).trim());
+        }
         return processes;
     }
+    // system settings defined here
     const windows_settings = {
         row_range: [0, 29],
         table_start: 3,
@@ -65,12 +65,21 @@ async function get_all_processes() {
     };
     const linux_settings = {
         row_range: [67, undefined],
-        table_start: 3,
-        line_ending: "\r\n",
+        table_start: 1,
+        line_ending: "\n",
         command: "ps -aux",
     };
+    // decide which platform is being used
     return await parser(process.platform === "win32" ? windows_settings : linux_settings);
 }
+const aliases = {
+    "Visual Studio Code": "Code.exe",
+    Atom: "atom.exe",
+    "Visual Studio": "devenv.exe",
+    IntelliJ: "",
+    Eclipse: "",
+    Pycharm: "",
+};
 module.exports = (() => {
     const config = {
         info: {
@@ -194,7 +203,7 @@ module.exports = (() => {
                             .map((value) => {
                             return this.targets.includes(value) ? value : null;
                         })
-                            .filter((value) => value); // check if any of the values are truthy
+                            .filter((value) => value !== null); // check if any of the values are truthy
                     }
                     /**
                      * Set the user's status
@@ -211,18 +220,20 @@ module.exports = (() => {
                      */
                     async loop() {
                         const sleep = () => new Promise((r) => setTimeout(r, 15000)); // sleep for 15 seconds
-                        let new_running = [];
                         while (true) {
                             const current_targets = await this.check_tasks();
                             console.log(`Current targets: ${current_targets}`);
-                            // add the new tasks and remove the ones that have stopped
-                            this.running.forEach((value) => {
-                                if (current_targets.includes(value)) {
-                                    new_running = new_running.concat(value);
+                            // remove the tasks that stopped
+                            this.running = this.running
+                                .map((old_val) => current_targets.includes(old_val) ? old_val : null)
+                                .filter((new_val) => new_val);
+                            // add the tasks that started
+                            current_targets.map((name) => {
+                                if (!this.running.includes(name)) {
+                                    this.running.push(name);
                                 }
                             });
-                            this.running = new_running;
-                            console.log(`New running: ${new_running}`);
+                            console.log(`New running: ${this.running}`);
                             // set the status if running, remove status if not running
                             const change_to = this.running.length // an empty list is truthy BRUH
                                 ? "dnd"
@@ -238,13 +249,11 @@ module.exports = (() => {
                      * @returns n switches with values from names
                      */
                     button_set() {
-                        const v = Object.keys(this.settings.tracked_items).map((name) => {
+                        return Object.keys(this.settings.tracked_items).map((name) => {
                             return new Settings.Switch(name, "Set 'Do Not Disturb' when this process runs", this.settings.tracked_items[name], (new_val) => {
                                 (new_val ? this.track : this.untrack)(name);
                             });
                         });
-                        Logger.log(v);
-                        return v;
                     }
                     /**
                      * Register a new process to track
@@ -253,8 +262,9 @@ module.exports = (() => {
                     track(name) {
                         Logger.log(`Tracked ${name}`);
                         let inst = Bapi.getPlugin("CodingDND"); // for some reason, the context isn't defined in this function. I had to define ti by getting BdApi's version instead
-                        inst.settings.tracked_items[name] = true;
-                        inst.targets.push(name);
+                        const alias = aliases[name];
+                        inst.settings.tracked_items[alias] = true;
+                        inst.targets.push(alias);
                     }
                     /**
                      * Unregister a process from tracking
@@ -263,9 +273,10 @@ module.exports = (() => {
                     untrack(name) {
                         Logger.log(`Untracked ${name}`);
                         let inst = Bapi.getPlugin("CodingDND");
-                        inst.settings.tracked_items[name] = false;
+                        const alias = aliases[name];
+                        inst.settings.tracked_items[alias] = false;
                         inst.targets = inst.targets.filter((value) => {
-                            value !== name;
+                            value !== alias;
                         });
                     }
                 };
