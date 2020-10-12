@@ -230,10 +230,10 @@ module.exports = (() => {
                 inactive_status: "online",
               };
               // get the names of the processes
-              // @ts-ignore  the output will never contain `undefined` due to filter, but ts is reading the overload of filter
-              this.targets = Array.from(this.settings.tracked_items, (pair) => {
-                if (pair[1]) {
-                  return pair[0];
+              this.targets = Array.from(
+                Object.entries(this.settings.tracked_items), // get the key: value pairs
+                (pair: [string, boolean]): string | null => {
+                  return pair[1] ? pair[0] : null; // only add the name if it's tracked
                 }
               ).filter(not_empty); // only keep the strings
             }
