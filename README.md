@@ -3,10 +3,11 @@ NOTE: does not support Linux for now.
 
 ## <u>Preview</u>
 
-<a href = "https://drive.google.com/file/d/1mlylormHDZrJI3-j3WjWdJMCVeGqDnZe/view?usp=sharing">Video of the plug-in in action</a>
+<a href = "https://streamable.com/pwpq7i">Video of the plug-in in action</a>
 
-Settings panel:
-<image src = "https://drive.google.com/file/d/1bUBz279tqW6jJaOAgHs1XTk-zi6sWQVi/view?usp=sharing"/>
+<a href = "https://ibb.co/W0vBk3T">Settings panel preview</a>
+
+<br>
 
 ## <u>Development Plan</u>
 
