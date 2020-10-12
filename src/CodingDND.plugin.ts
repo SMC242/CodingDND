@@ -220,8 +220,9 @@ module.exports = (() => {
               this.running = [];
               this.targets = [];
               this.run_loop = true; // used to stop the loop
+              // initialise last_status to the current status
               this.last_status = Bapi.findModuleByProps("getStatus").getStatus(
-                Bapi.findModuleByProps("getToken").getId()
+                Bapi.findModuleByProps("getToken").getId() // get the current user's ID
               );
               this.settings = Bapi.loadData("CodingDND", "settings") ?? {
                 tracked_items: {
@@ -372,11 +373,11 @@ module.exports = (() => {
              * Register a new process to track
              * @param name The name to register
              */
-            track(name) {
+            track(name: string) {
               Logger.log(`Tracked ${name}`);
               let inst: CodingDND = Bapi.getPlugin("CodingDND"); // for some reason, the context isn't defined in this function. I had to define ti by getting BdApi's version instead
               const alias = aliases[name];
-              inst.settings.tracked_items[alias] = true;
+              inst.settings.tracked_items[name] = true;
               inst.targets.push(alias);
             }
 
@@ -384,11 +385,11 @@ module.exports = (() => {
              * Unregister a process from tracking
              * @param name The name to unregister
              */
-            untrack(name) {
+            untrack(name: string) {
               Logger.log(`Untracked ${name}`);
               let inst: CodingDND = Bapi.getPlugin("CodingDND");
               const alias = aliases[name];
-              inst.settings.tracked_items[alias] = false;
+              inst.settings.tracked_items[name] = false;
               inst.targets = inst.targets.filter((value) => {
                 value !== alias;
               });

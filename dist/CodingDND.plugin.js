@@ -147,6 +147,10 @@ module.exports = (() => {
                         super();
                         this.running = [];
                         this.targets = [];
+                        this.run_loop = true; // used to stop the loop
+                        // initialise last_status to the current status
+                        this.last_status = Bapi.findModuleByProps("getStatus").getStatus(Bapi.findModuleByProps("getToken").getId() // get the current user's ID
+                        );
                         this.settings = (_a = Bapi.loadData("CodingDND", "settings")) !== null && _a !== void 0 ? _a : {
                             tracked_items: {
                                 "Visual Studio Code": false,
@@ -182,10 +186,11 @@ module.exports = (() => {
                         Patcher.before(Logger, "log", (t, a) => {
                             a[0] = "Patched Message: " + a[0];
                         });
-                        this.loop();
+                        this.tracking_loop = this.loop();
                     }
                     onStop() {
                         Logger.log("Stopped");
+                        this.run_loop = false;
                         Patcher.unpatchAll();
                     }
                     load() { }
@@ -194,6 +199,16 @@ module.exports = (() => {
                         return Settings.SettingPanel.build(this.saveSettings.bind(this), 
                         // this group is for selecting `targets`
                         new Settings.SettingGroup("Target Processes").append(...this.button_set()));
+                    }
+                    /**
+                     * Set the user's status
+                     * @param set_to The status to set. This may be dnd, online, invisible, or idle
+                     */
+                    async set_status(set_to) {
+                        let UserSettingsUpdater = Bapi.findModuleByProps("updateLocalSettings");
+                        UserSettingsUpdater.updateLocalSettings({
+                            status: set_to,
+                        });
                     }
                     /**
                      * Get the targeted tasks that are running
@@ -207,23 +222,16 @@ module.exports = (() => {
                             .filter(not_empty); // check if any of the values are truthy
                     }
                     /**
-                     * Set the user's status
-                     * @param set_to The status to set. This may be dnd, online, invisible, or idle
-                     */
-                    async set_status(set_to) {
-                        let UserSettingsUpdater = Bapi.findModuleByProps("updateLocalSettings");
-                        UserSettingsUpdater.updateLocalSettings({
-                            status: set_to,
-                        });
-                    }
-                    /**
                      * Continually check for a target being started or stopped
                      */
                     async loop() {
-                        const sleep = () => new Promise((r) => setTimeout(r, 15000)); // sleep for 15 seconds
+                        const sleep = () => new Promise((r) => setTimeout(r, 30000)); // sleep for 30 seconds
                         while (true) {
+                            if (!this.run_loop) {
+                                return;
+                            } // exit if cancelled
+                            // get the running targeted tasks
                             const current_targets = await this.check_tasks();
-                            console.log(`Current targets: ${current_targets}`);
                             // remove the tasks that stopped
                             this.running = this.running
                                 .map((old_val) => current_targets.includes(old_val) ? old_val : null)
@@ -234,20 +242,24 @@ module.exports = (() => {
                                     this.running.push(name);
                                 }
                             });
-                            console.log(`New running: ${this.running}`);
+                            Logger.log(`Running targets detected: ${this.running}`);
                             // set the status if running, remove status if not running
                             const change_to = this.running.length // an empty list is truthy BRUH
                                 ? "dnd"
                                 : "online";
-                            console.log(`New status: ${change_to}`);
-                            this.set_status(change_to);
+                            // only make an API call if the status will change
+                            if (change_to != this.last_status) {
+                                console.log(`Setting new status: ${change_to}`);
+                                this.set_status(change_to);
+                                this.last_status = change_to;
+                            }
                             // sleep for 15 seconds
                             await sleep();
                         }
                     }
                     /**
                      * Create a set of switches to take in whether to check for their status
-                     * @returns n switches with values from names
+                     * @returns Settings.Switches that correspond to a tracked item
                      */
                     button_set() {
                         return Object.keys(this.settings.tracked_items).map((name) => {
@@ -264,7 +276,7 @@ module.exports = (() => {
                         Logger.log(`Tracked ${name}`);
                         let inst = Bapi.getPlugin("CodingDND"); // for some reason, the context isn't defined in this function. I had to define ti by getting BdApi's version instead
                         const alias = aliases[name];
-                        inst.settings.tracked_items[alias] = true;
+                        inst.settings.tracked_items[name] = true;
                         inst.targets.push(alias);
                     }
                     /**
@@ -275,7 +287,7 @@ module.exports = (() => {
                         Logger.log(`Untracked ${name}`);
                         let inst = Bapi.getPlugin("CodingDND");
                         const alias = aliases[name];
-                        inst.settings.tracked_items[alias] = false;
+                        inst.settings.tracked_items[name] = false;
                         inst.targets = inst.targets.filter((value) => {
                             value !== alias;
                         });
