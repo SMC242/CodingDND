@@ -122,8 +122,8 @@ const aliases: tracked_aliases = {
   "Visual Studio Code": "Code.exe",
   Atom: "atom.exe",
   "Visual Studio": "devenv.exe",
-  IntelliJ: "",
-  Eclipse: "",
+  IntelliJ: "idea64.exe", // !FIX: only works for 64bit. Maybe refactor tracked_aliases to be {string: Array<string>}
+  Eclipse: "eclipse.exe",
   Pycharm: "",
 };
 
