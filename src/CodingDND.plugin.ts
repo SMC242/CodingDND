@@ -213,12 +213,16 @@ module.exports = (() => {
             running: Array<string>;
             settings: settings_obj;
             run_loop: boolean;
+            last_status: string; // must be in ['online', 'invisible', 'idle', 'dnd']
 
             constructor() {
               super();
               this.running = [];
               this.targets = [];
               this.run_loop = true; // used to stop the loop
+              this.last_status = Bapi.findModuleByProps("getStatus").getStatus(
+                Bapi.findModuleByProps("getToken").getId()
+              );
               this.settings = Bapi.loadData("CodingDND", "settings") ?? {
                 tracked_items: {
                   "Visual Studio Code": false,
@@ -334,8 +338,13 @@ module.exports = (() => {
                 const change_to = this.running.length // an empty list is truthy BRUH
                   ? "dnd"
                   : "online";
-                console.log(`Setting new status: ${change_to}`);
-                this.set_status(change_to);
+
+                // only make an API call if the status will change
+                if (change_to != this.last_status) {
+                  console.log(`Setting new status: ${change_to}`);
+                  this.set_status(change_to);
+                  this.last_status = change_to;
+                }
 
                 // sleep for 15 seconds
                 await sleep();
