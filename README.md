@@ -1,4 +1,6 @@
 This BetterDiscord plugin will set your status to Do Not Disturb when you start an IDE.
+NOTE: does not support Linux for now.
+
 
 ## <u>Development Plan</u>
 
