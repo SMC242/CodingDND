@@ -166,7 +166,7 @@ module.exports = (() => {
                         // get the names of the processes
                         this.targets = Array.from(Object.entries(this.settings.tracked_items), // get the key: value pairs
                         (pair) => {
-                            return pair[1] ? pair[0] : null; // only add the name if it's tracked
+                            return pair[1] ? aliases[pair[0]] : null; // only add the name's corresponding alias if it's tracked
                         }).filter(not_empty); // only keep the strings
                     }
                     getName() {
@@ -186,7 +186,7 @@ module.exports = (() => {
                         Patcher.before(Logger, "log", (t, a) => {
                             a[0] = "Patched Message: " + a[0];
                         });
-                        this.tracking_loop = this.loop();
+                        this.loop();
                     }
                     onStop() {
                         Logger.log("Stopped");
@@ -194,12 +194,6 @@ module.exports = (() => {
                         Patcher.unpatchAll();
                     }
                     load() { }
-                    getSettingsPanel() {
-                        Logger.log("Creating panel");
-                        return Settings.SettingPanel.build(this.saveSettings.bind(this), 
-                        // this group is for selecting `targets`
-                        new Settings.SettingGroup("Target Processes").append(...this.button_set()));
-                    }
                     /**
                      * Set the user's status
                      * @param set_to The status to set. This may be dnd, online, invisible, or idle
@@ -249,13 +243,21 @@ module.exports = (() => {
                                 : "online";
                             // only make an API call if the status will change
                             if (change_to != this.last_status) {
-                                console.log(`Setting new status: ${change_to}`);
+                                Logger.log(`Setting new status: ${change_to}`);
                                 this.set_status(change_to);
                                 this.last_status = change_to;
                             }
                             // sleep for 15 seconds
                             await sleep();
                         }
+                    }
+                    getSettingsPanel() {
+                        return Settings.SettingPanel.build(this.save_settings, 
+                        // this group is for selecting `targets`
+                        new Settings.SettingGroup("Target Processes").append(...this.button_set()));
+                    }
+                    async save_settings(new_settings) {
+                        Bapi.saveData("CodingDND", "settings", new_settings);
                     }
                     /**
                      * Create a set of switches to take in whether to check for their status
@@ -288,9 +290,7 @@ module.exports = (() => {
                         let inst = Bapi.getPlugin("CodingDND");
                         const alias = aliases[name];
                         inst.settings.tracked_items[name] = false;
-                        inst.targets = inst.targets.filter((value) => {
-                            value !== alias;
-                        });
+                        inst.targets = inst.targets.filter((value) => value !== alias);
                     }
                 };
             };

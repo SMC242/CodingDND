@@ -390,9 +390,7 @@ module.exports = (() => {
               let inst: CodingDND = Bapi.getPlugin("CodingDND");
               const alias = aliases[name];
               inst.settings.tracked_items[name] = false;
-              inst.targets = inst.targets.filter((value) => {
-                value !== alias;
-              });
+              inst.targets = inst.targets.filter((value) => value !== alias);
             }
           };
         };
