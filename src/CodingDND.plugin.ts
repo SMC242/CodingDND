@@ -347,8 +347,8 @@ module.exports = (() => {
 
                 // set the status if running, remove status if not running
                 const change_to = this.running.length // an empty list is truthy BRUH
-                  ? "dnd"
-                  : "online";
+                  ? this.settings.active_status
+                  : this.settings.inactive_status;
 
                 // only make an API call if the status will change
                 if (change_to != this.last_status) {
@@ -366,11 +366,37 @@ module.exports = (() => {
               // prevent context loss
               this.track.bind(this);
               this.untrack.bind(this);
+
+              const statuses: Array<object> = [
+                { label: "Online", value: "online" },
+                { label: "Idle", value: "idle" },
+                { label: "Invisible", value: "invisible" },
+                { label: "Do Not Disturb", value: "dnd" },
+              ];
               return Settings.SettingPanel.build(
                 this.save_settings,
                 // this group is for selecting `targets`
                 new Settings.SettingGroup("Target Processes").append(
                   ...this.button_set()
+                ),
+                // this group is for selecting which statuses are set when running/not running targets
+                new Settings.SettingGroup("Statuses").append(
+                  new Settings.Dropdown(
+                    "Active status",
+                    "The status to set when one of the targets is running",
+                    this.settings.active_status,
+                    statuses,
+                    (new_status: string) =>
+                      (this.settings.active_status = new_status)
+                  ),
+                  new Settings.Dropdown(
+                    "Inactive status",
+                    "The status to set when none of the targets are running",
+                    this.settings.inactive_status,
+                    statuses, // !FIX: not displaying all statuses
+                    (new_status: string) =>
+                      (this.settings.inactive_status = new_status)
+                  )
                 )
               );
             }

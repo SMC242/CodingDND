@@ -202,6 +202,7 @@ module.exports = (() => {
                         Patcher.before(Logger, "log", (t, a) => {
                             a[0] = "Patched Message: " + a[0];
                         });
+                        this.run_loop = true; // ensure that the loop restarts in the case of a reload
                         this.loop();
                     }
                     onStop() {
@@ -258,8 +259,8 @@ module.exports = (() => {
                             Logger.log(`Running targets detected: ${this.running}`);
                             // set the status if running, remove status if not running
                             const change_to = this.running.length // an empty list is truthy BRUH
-                                ? "dnd"
-                                : "online";
+                                ? this.settings.active_status
+                                : this.settings.inactive_status;
                             // only make an API call if the status will change
                             if (change_to != this.last_status) {
                                 Logger.log(`Setting new status: ${change_to}`);
@@ -271,9 +272,21 @@ module.exports = (() => {
                         }
                     }
                     getSettingsPanel() {
+                        // prevent context loss
+                        this.track.bind(this);
+                        this.untrack.bind(this);
+                        const statuses = [
+                            { label: "Online", value: "online" },
+                            { label: "Idle", value: "idle" },
+                            { label: "Invisible", value: "invisible" },
+                            { label: "Do Not Disturb", value: "dnd" },
+                        ];
                         return Settings.SettingPanel.build(this.save_settings, 
                         // this group is for selecting `targets`
-                        new Settings.SettingGroup("Target Processes").append(...this.button_set()));
+                        new Settings.SettingGroup("Target Processes").append(...this.button_set()), 
+                        // this group is for selecting which statuses are set when running/not running targets
+                        new Settings.SettingGroup("Statuses").append(new Settings.Dropdown("Active status", "The status to set when one of the targets is running", this.settings.active_status, statuses, (new_status) => (this.settings.active_status = new_status)), new Settings.Dropdown("Inactive status", "The status to set when none of the targets are running", this.settings.inactive_status, statuses, // !FIX: not displaying all statuses
+                        (new_status) => (this.settings.inactive_status = new_status))));
                     }
                     async save_settings(new_settings) {
                         Bapi.saveData("CodingDND", "settings", new_settings);
@@ -295,10 +308,9 @@ module.exports = (() => {
                      */
                     track(name) {
                         Logger.log(`Tracked ${name}`);
-                        let inst = Bapi.getPlugin("CodingDND"); // for some reason, the context isn't defined in this function. I had to define ti by getting BdApi's version instead
                         const alias = aliases[name];
-                        inst.settings.tracked_items[name] = true;
-                        inst.targets.push(alias);
+                        this.settings.tracked_items[name] = true;
+                        this.targets.push(alias);
                     }
                     /**
                      * Unregister a process from tracking
@@ -306,10 +318,9 @@ module.exports = (() => {
                      */
                     untrack(name) {
                         Logger.log(`Untracked ${name}`);
-                        let inst = Bapi.getPlugin("CodingDND");
                         const alias = aliases[name];
-                        inst.settings.tracked_items[name] = false;
-                        inst.targets = inst.targets.filter((value) => value !== alias);
+                        this.settings.tracked_items[name] = false;
+                        this.targets = this.targets.filter((value) => value !== alias);
                     }
                 };
             };
