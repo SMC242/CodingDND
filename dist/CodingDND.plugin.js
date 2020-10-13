@@ -272,9 +272,6 @@ module.exports = (() => {
                         }
                     }
                     getSettingsPanel() {
-                        // prevent context loss
-                        this.track.bind(this);
-                        this.untrack.bind(this);
                         const statuses = [
                             { label: "Online", value: "online" },
                             { label: "Idle", value: "idle" },
@@ -298,7 +295,8 @@ module.exports = (() => {
                     button_set() {
                         return Object.keys(this.settings.tracked_items).map((name) => {
                             return new Settings.Switch(name, "Set 'Do Not Disturb' when this process runs", this.settings.tracked_items[name], (new_val) => {
-                                (new_val ? this.track : this.untrack)(name);
+                                // prevent context loss
+                                (new_val ? this.track.bind(this) : this.untrack.bind(this))(name);
                             });
                         });
                     }
