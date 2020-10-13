@@ -6,7 +6,7 @@ NOTE: does not support Linux for now.
 <a href = "https://streamable.com/pwpq7i">Video of the plug-in in action</a>
 
 <a href = "https://ibb.co/W0vBk3T">Settings panel preview</a>
-
+<br>
 <br>
 
 ## <u>Development Plan</u>

@@ -151,7 +151,7 @@ module.exports = (() => {
       {
         title: "First release!",
         items: [
-          "All IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
+          "All of the planned IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
           "The tracking loop should work.",
           "Please tell me if you find any bugs.",
         ],
