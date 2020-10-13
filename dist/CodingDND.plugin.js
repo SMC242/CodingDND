@@ -256,7 +256,7 @@ module.exports = (() => {
                                     this.running.push(name);
                                 }
                             });
-                            Logger.log(`Running targets detected: ${this.running}`);
+                            Logger.log(`Running targets detected: ${this.running.length || "None"}`);
                             // set the status if running, remove status if not running
                             const change_to = this.running.length // an empty list is truthy BRUH
                                 ? this.settings.active_status
