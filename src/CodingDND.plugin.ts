@@ -281,6 +281,7 @@ module.exports = (() => {
               Patcher.before(Logger, "log", (t, a) => {
                 a[0] = "Patched Message: " + a[0];
               });
+              this.run_loop = true; // ensure that the loop restarts in the case of a reload
               this.loop();
             }
             onStop() {
