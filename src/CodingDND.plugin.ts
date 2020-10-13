@@ -37,7 +37,7 @@ const { execSync } = require("child_process");
 
 /**
  * System agnostic method of finding all the process names
- * @returns The process names
+ * @returns The process names with duplicates and extensions removed.
  */
 async function get_all_processes(): Promise<Array<string>> {
   // internal interface for defining system-specific info about the task list commands
@@ -48,16 +48,25 @@ async function get_all_processes(): Promise<Array<string>> {
     command: string; // the name of the command that gets the process list
   }
 
+  /**
+   * Removes the file extension if exists.
+   * @param process_name The name to remove the extension from
+   */
+  function strip_extension(process_name: string): string {
+    const end = process_name.lastIndexOf(".");
+    return process_name.slice(0, end > 0 ? end : undefined);
+  }
+
   // this is the internal part
   /**
    * Get the running process list and parse it into just the names. System agnostic
    * @param system_specifics The relevant information of the current environment
-   * @returns Array<string> of process names
+   * @returns Array<string> of unique process names
    */
   async function parser(
     system_specifics: sys_settings
   ): Promise<Array<string>> {
-    let processes: Array<string> = [];
+    let processes: Set<string> = new Set();
 
     // this returns a buffer which is converted to string
     const raw_output = execSync(system_specifics.command).toString();
@@ -68,9 +77,9 @@ async function get_all_processes(): Promise<Array<string>> {
     // iterate over each row and parse it into the name only
     const process_rows = raw_output.split(system_specifics.line_ending);
     for (let i = system_specifics.table_start; i < process_rows.length; i++) {
-      processes.push(slicer(process_rows[i]).trim());
+      processes.add(slicer(process_rows[i]).trim());
     }
-    return processes;
+    return Array.from(processes).map(strip_extension);
   }
 
   // system settings defined here
@@ -112,19 +121,19 @@ interface settings_obj {
 
 /**
  * Used for representing tracked processes. Processes will not always have the same name as the app so this is necessary.
- * @alias the name that the user sees. This covers the actual executable name.
+ * @alias the name that the user sees. This covers the actual executable name. NOTE: the actual name must not have an extension for Linux compatibility
  */
 interface tracked_aliases {
   [alias: string]: string;
 }
 
 const aliases: tracked_aliases = {
-  "Visual Studio Code": "Code.exe",
-  Atom: "atom.exe",
-  "Visual Studio": "devenv.exe",
-  IntelliJ: "idea64.exe", // !FIX: only works for 64bit. Maybe refactor tracked_aliases to be {string: Array<string>}
-  Eclipse: "eclipse.exe",
-  Pycharm: "pycharm64.exe",
+  "Visual Studio Code": "Code",
+  Atom: "atom",
+  "Visual Studio": "devenv",
+  IntelliJ: "idea64", // !FIX: only works for 64bit. Maybe refactor tracked_aliases to be {string: Array<string>}
+  Eclipse: "eclipse",
+  Pycharm: "pycharm64",
 };
 
 module.exports = (() => {
@@ -300,8 +309,10 @@ module.exports = (() => {
             async check_tasks(): Promise<Array<string>> {
               const current_tasks = await get_all_processes();
               return current_tasks
-                .map((value: string) => {
-                  return this.targets.includes(value) ? value : null;
+                .map((process_name) => {
+                  return this.targets.includes(process_name)
+                    ? process_name
+                    : null;
                 })
                 .filter(not_empty); // check if any of the values are truthy
             }
@@ -313,6 +324,7 @@ module.exports = (() => {
               const sleep = () => new Promise((r) => setTimeout(r, 30000)); // sleep for 30 seconds
               while (true) {
                 if (!this.run_loop) {
+                  Logger.log("Tracking loop killed.");
                   return;
                 } // exit if cancelled
 

@@ -34,17 +34,25 @@ const Bapi = BdApi;
 const { execSync } = require("child_process");
 /**
  * System agnostic method of finding all the process names
- * @returns The process names
+ * @returns The process names with duplicates and extensions removed.
  */
 async function get_all_processes() {
+    /**
+     * Removes the file extension if exists.
+     * @param process_name The name to remove the extension from
+     */
+    function strip_extension(process_name) {
+        const end = process_name.lastIndexOf(".");
+        return process_name.slice(0, end > 0 ? end : undefined);
+    }
     // this is the internal part
     /**
      * Get the running process list and parse it into just the names. System agnostic
      * @param system_specifics The relevant information of the current environment
-     * @returns Array<string> of process names
+     * @returns Array<string> of unique process names
      */
     async function parser(system_specifics) {
-        let processes = [];
+        let processes = new Set();
         // this returns a buffer which is converted to string
         const raw_output = execSync(system_specifics.command).toString();
         // parsing functions here
@@ -52,9 +60,9 @@ async function get_all_processes() {
         // iterate over each row and parse it into the name only
         const process_rows = raw_output.split(system_specifics.line_ending);
         for (let i = system_specifics.table_start; i < process_rows.length; i++) {
-            processes.push(slicer(process_rows[i]).trim());
+            processes.add(slicer(process_rows[i]).trim());
         }
-        return processes;
+        return Array.from(processes).map(strip_extension);
     }
     // system settings defined here
     const windows_settings = {
@@ -76,12 +84,12 @@ function not_empty(value) {
     return value != undefined; // checks for both null and undefined
 }
 const aliases = {
-    "Visual Studio Code": "Code.exe",
-    Atom: "atom.exe",
-    "Visual Studio": "devenv.exe",
-    IntelliJ: "idea64.exe",
-    Eclipse: "eclipse.exe",
-    Pycharm: "pycharm64.exe",
+    "Visual Studio Code": "Code",
+    Atom: "atom",
+    "Visual Studio": "devenv",
+    IntelliJ: "idea64",
+    Eclipse: "eclipse",
+    Pycharm: "pycharm64",
 };
 module.exports = (() => {
     const config = {
@@ -104,7 +112,7 @@ module.exports = (() => {
             {
                 title: "First release!",
                 items: [
-                    "All IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
+                    "All of the planned IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
                     "The tracking loop should work.",
                     "Please tell me if you find any bugs.",
                 ],
@@ -218,8 +226,10 @@ module.exports = (() => {
                     async check_tasks() {
                         const current_tasks = await get_all_processes();
                         return current_tasks
-                            .map((value) => {
-                            return this.targets.includes(value) ? value : null;
+                            .map((process_name) => {
+                            return this.targets.includes(process_name)
+                                ? process_name
+                                : null;
                         })
                             .filter(not_empty); // check if any of the values are truthy
                     }
@@ -230,6 +240,7 @@ module.exports = (() => {
                         const sleep = () => new Promise((r) => setTimeout(r, 30000)); // sleep for 30 seconds
                         while (true) {
                             if (!this.run_loop) {
+                                Logger.log("Tracking loop killed.");
                                 return;
                             } // exit if cancelled
                             // get the running targeted tasks
