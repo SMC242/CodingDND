@@ -363,6 +363,9 @@ module.exports = (() => {
             }
 
             getSettingsPanel() {
+              // prevent context loss
+              this.track.bind(this);
+              this.untrack.bind(this);
               return Settings.SettingPanel.build(
                 this.save_settings,
                 // this group is for selecting `targets`
@@ -399,10 +402,9 @@ module.exports = (() => {
              */
             track(name: string) {
               Logger.log(`Tracked ${name}`);
-              let inst: CodingDND = Bapi.getPlugin("CodingDND"); // for some reason, the context isn't defined in this function. I had to define ti by getting BdApi's version instead
               const alias = aliases[name];
-              inst.settings.tracked_items[name] = true;
-              inst.targets.push(alias);
+              this.settings.tracked_items[name] = true;
+              this.targets.push(alias);
             }
 
             /**
@@ -411,10 +413,9 @@ module.exports = (() => {
              */
             untrack(name: string) {
               Logger.log(`Untracked ${name}`);
-              let inst: CodingDND = Bapi.getPlugin("CodingDND");
               const alias = aliases[name];
-              inst.settings.tracked_items[name] = false;
-              inst.targets = inst.targets.filter((value) => value !== alias);
+              this.settings.tracked_items[name] = false;
+              this.targets = this.targets.filter((value) => value !== alias);
             }
           };
         };
