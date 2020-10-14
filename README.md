@@ -6,8 +6,9 @@ NOTE: does not support Linux for now.
 <a href = "https://streamable.com/pwpq7i">Video of the plug-in in action</a>
 
 <a href = "https://ibb.co/W0vBk3T">Settings panel preview</a>
-<br>
-<br>
+
+### <u>Installation</u>
+Go to <a href = "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js">this page</a>, hit CTRL + S, then save it in your BetterDiscord plug-ins folder. Then go to <span style = "color: fuscia">Settings --> Plugins --> CodingDND --></span> Settings to customise the plug-in.
 
 ## <u>Development Plan</u>
 
