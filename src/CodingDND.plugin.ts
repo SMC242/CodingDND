@@ -124,10 +124,10 @@ interface settings_obj {
  * @alias the name that the user sees. This covers the actual executable name. NOTE: the actual name must not have an extension for Linux compatibility
  */
 interface tracked_aliases {
-  [alias: string]: string;
+  [alias: string]: string | null;
 }
 
-const aliases: tracked_aliases = {
+const win_aliases: tracked_aliases = {
   "Visual Studio Code": "Code",
   Atom: "atom",
   "Visual Studio": "devenv",
@@ -135,6 +135,19 @@ const aliases: tracked_aliases = {
   Eclipse: "eclipse",
   Pycharm: "pycharm64",
 };
+
+const linux_aliases: tracked_aliases = {
+  "Visual Studio Code": null,
+  Atom: "atom",
+  "Visual Studio": null,
+  IntelliJ: "idea", // !FIX: only works for 64bit. Maybe refactor tracked_aliases to be {string: Array<string>}
+  Eclipse: "eclipse",
+  Pycharm: "charm",
+};
+
+// use different aliases per OS
+const aliases: tracked_aliases =
+  process.platform === "win32" ? win_aliases : linux_aliases;
 
 module.exports = (() => {
   const config = {
@@ -439,7 +452,9 @@ module.exports = (() => {
               Logger.log(`Tracked ${name}`);
               const alias = aliases[name];
               this.settings.tracked_items[name] = true;
-              this.targets.push(alias);
+              if (alias) {
+                this.targets.push(alias);
+              } // prevent null in `targets`
             }
 
             /**
