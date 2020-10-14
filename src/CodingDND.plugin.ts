@@ -1,7 +1,7 @@
 /**
  * @name CodingDND
  * @invite AaMz4gp
- * @authorId 395598378387636234
+ * @authorId 723730866370510928
  * @website https://github.com/SMC242/CodingDND
  * @source https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js
  */
