@@ -1,4 +1,0 @@
-atom
-eclipse
-Intellij = idea
-pycharm = charm
