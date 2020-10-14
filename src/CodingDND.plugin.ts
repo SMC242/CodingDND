@@ -375,11 +375,11 @@ module.exports = (() => {
                 { label: "Do Not Disturb", value: "dnd" },
               ];
               return Settings.SettingPanel.build(
-                this.save_settings,
+                this.save_settings.bind(this),
                 // this group is for selecting `targets`
-                new Settings.SettingGroup("Target Processes").append(
-                  ...this.button_set()
-                ),
+                new Settings.SettingGroup("Target Processes", {
+                  callback: this.save_settings.bind(this),
+                }).append(...this.button_set()),
                 // this group is for selecting which statuses are set when running/not running targets
                 new Settings.SettingGroup("Statuses").append(
                   new Settings.Dropdown(
@@ -402,8 +402,8 @@ module.exports = (() => {
               );
             }
 
-            async save_settings(new_settings: settings_obj): Promise<void> {
-              Bapi.saveData("CodingDND", "settings", new_settings);
+            async save_settings(): Promise<void> {
+              Bapi.saveData("CodingDND", "settings", this.settings);
             }
 
             /**
