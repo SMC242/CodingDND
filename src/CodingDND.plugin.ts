@@ -394,10 +394,15 @@ module.exports = (() => {
                     "Inactive status",
                     "The status to set when none of the targets are running",
                     this.settings.inactive_status,
-                    statuses, // !FIX: not displaying all statuses
                     (new_status: string) =>
                       (this.settings.inactive_status = new_status)
-                  )
+                  ),
+                  // these are needed because the bottommost options were getting cut off the screen
+                  document.createElement("br"),
+                  document.createElement("br"),
+                  document.createElement("br"),
+                  document.createElement("br"),
+                  document.createElement("br")
                 )
               );
             }
