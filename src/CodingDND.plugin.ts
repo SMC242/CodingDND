@@ -37,9 +37,9 @@ const { execSync } = require("child_process");
 
 /**
  * System agnostic method of finding all the process names
- * @returns The process names with duplicates and extensions removed.
+ * @returns The function to get the process names with duplicates and extensions removed.
  */
-async function get_all_processes(): Promise<Array<string>> {
+async function get_process_parser(): Promise<Function> {
   // internal interface for defining system-specific info about the task list commands
   interface sys_settings {
     row_range: [number | undefined, number | undefined]; // where to slice the row to get the process name. Pass undefined to not set a limit
@@ -97,9 +97,9 @@ async function get_all_processes(): Promise<Array<string>> {
   };
 
   // decide which platform is being used
-  return await parser(
-    process.platform === "win32" ? windows_settings : linux_settings
-  );
+  const current_settings =
+    process.platform === "win32" ? windows_settings : linux_settings;
+  return () => parser(current_settings);
 }
 
 function not_empty<incoming_t>(
@@ -245,6 +245,7 @@ module.exports = (() => {
             settings: settings_obj;
             run_loop: boolean;
             last_status: string; // must be in ['online', 'invisible', 'idle', 'dnd']
+            get_all_processes: Promise<Function>;
 
             constructor() {
               super();
@@ -274,6 +275,9 @@ module.exports = (() => {
                   return pair[1] ? aliases[pair[0]] : null; // only add the name's corresponding alias if it's tracked
                 }
               ).filter(not_empty); // only keep the strings
+
+              // get process parser
+              this.get_all_processes = get_process_parser(); // decide the platform only once
             }
 
             getName() {
@@ -321,7 +325,7 @@ module.exports = (() => {
              * Get the targeted tasks that are running
              */
             async check_tasks(): Promise<Array<string>> {
-              const current_tasks = await get_all_processes();
+              const current_tasks = await this.get_all_processes();
               return current_tasks
                 .map((process_name) => {
                   return this.targets.includes(process_name)
