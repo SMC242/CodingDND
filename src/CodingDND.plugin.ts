@@ -1,9 +1,9 @@
 /**
  * @name CodingDND
  * @invite AaMz4gp
- * @authorId 723730866370510928
+ * @authorId "395598378387636234"
  * @website https://github.com/SMC242/CodingDND
- * @source https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js
+ * @source https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js
  */
 
 /**
@@ -163,9 +163,9 @@ module.exports = (() => {
       version: "0.25",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
-      github: "https://github.com/SMC242/CodingDND",
+      github: "https://github.com/SMC242/CodingDND/tree/stable",
       github_raw:
-        "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js",
+        "https://github.com/SMC242/CodingDND/blob/stable/CodingDND.plugin.js",
       source:
         "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.ts",
     },
@@ -284,7 +284,7 @@ module.exports = (() => {
               return config.info.name;
             }
             getAuthor() {
-              return config.info.name;
+              return config.info.authors.map((a) => a.name).join(", ");
             }
             getDescription() {
               return config.info.description;
