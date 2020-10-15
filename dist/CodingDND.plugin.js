@@ -1,9 +1,9 @@
 /**
  * @name CodingDND
  * @invite AaMz4gp
- * @authorId 395598378387636234
+ * @authorId "395598378387636234"
  * @website https://github.com/SMC242/CodingDND
- * @source https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js
+ * @source https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js
  */
 /**
 @cc_on
@@ -34,9 +34,9 @@ const Bapi = BdApi;
 const { execSync } = require("child_process");
 /**
  * System agnostic method of finding all the process names
- * @returns The process names with duplicates and extensions removed.
+ * @returns The function to get the process names with duplicates and extensions removed.
  */
-async function get_all_processes() {
+function get_process_parser() {
     /**
      * Removes the file extension if exists.
      * @param process_name The name to remove the extension from
@@ -78,12 +78,13 @@ async function get_all_processes() {
         command: "ps -aux",
     };
     // decide which platform is being used
-    return await parser(process.platform === "win32" ? windows_settings : linux_settings);
+    const current_settings = process.platform === "win32" ? windows_settings : linux_settings;
+    return () => parser(current_settings);
 }
 function not_empty(value) {
     return value != undefined; // checks for both null and undefined
 }
-const aliases = {
+const win_aliases = {
     "Visual Studio Code": "Code",
     Atom: "atom",
     "Visual Studio": "devenv",
@@ -91,6 +92,16 @@ const aliases = {
     Eclipse: "eclipse",
     Pycharm: "pycharm64",
 };
+const linux_aliases = {
+    "Visual Studio Code": null,
+    Atom: "atom",
+    "Visual Studio": null,
+    IntelliJ: "idea",
+    Eclipse: "eclipse",
+    Pycharm: "charm",
+};
+// use different aliases per OS
+const aliases = process.platform === "win32" ? win_aliases : linux_aliases;
 module.exports = (() => {
     const config = {
         info: {
@@ -104,8 +115,8 @@ module.exports = (() => {
             ],
             version: "0.25",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
-            github: "https://github.com/SMC242/CodingDND",
-            github_raw: "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js",
+            github: "https://github.com/SMC242/CodingDND/tree/stable",
+            github_raw: "https://github.com/SMC242/CodingDND/blob/stable/CodingDND.plugin.js",
             source: "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.ts",
         },
         changelog: [
@@ -184,12 +195,14 @@ module.exports = (() => {
                         (pair) => {
                             return pair[1] ? aliases[pair[0]] : null; // only add the name's corresponding alias if it's tracked
                         }).filter(not_empty); // only keep the strings
+                        // get process parser
+                        this.get_all_processes = get_process_parser(); // decide the platform only once
                     }
                     getName() {
                         return config.info.name;
                     }
                     getAuthor() {
-                        return config.info.name;
+                        return config.info.authors.map((a) => a.name).join(", ");
                     }
                     getDescription() {
                         return config.info.description;
@@ -225,7 +238,7 @@ module.exports = (() => {
                      * Get the targeted tasks that are running
                      */
                     async check_tasks() {
-                        const current_tasks = await get_all_processes();
+                        const current_tasks = await this.get_all_processes();
                         return current_tasks
                             .map((process_name) => {
                             return this.targets.includes(process_name)
@@ -278,15 +291,20 @@ module.exports = (() => {
                             { label: "Invisible", value: "invisible" },
                             { label: "Do Not Disturb", value: "dnd" },
                         ];
-                        return Settings.SettingPanel.build(this.save_settings, 
+                        return Settings.SettingPanel.build(this.save_settings.bind(this), 
                         // this group is for selecting `targets`
-                        new Settings.SettingGroup("Target Processes").append(...this.button_set()), 
+                        new Settings.SettingGroup("Target Processes", {
+                            callback: this.save_settings.bind(this),
+                        }).append(...this.button_set()), 
                         // this group is for selecting which statuses are set when running/not running targets
-                        new Settings.SettingGroup("Statuses").append(new Settings.Dropdown("Active status", "The status to set when one of the targets is running", this.settings.active_status, statuses, (new_status) => (this.settings.active_status = new_status)), new Settings.Dropdown("Inactive status", "The status to set when none of the targets are running", this.settings.inactive_status, statuses, // !FIX: not displaying all statuses
-                        (new_status) => (this.settings.inactive_status = new_status))));
+                        new Settings.SettingGroup("Statuses", {
+                            callback: this.save_settings.bind(this),
+                        }).append(new Settings.Dropdown("Active status", "The status to set when one of the targets is running", this.settings.active_status, statuses, (new_status) => (this.settings.active_status = new_status)), new Settings.Dropdown("Inactive status", "The status to set when none of the targets are running", this.settings.inactive_status, statuses, (new_status) => (this.settings.inactive_status = new_status)), 
+                        // these are needed because the bottommost options were getting cut off the screen
+                        document.createElement("br"), document.createElement("br"), document.createElement("br"), document.createElement("br"), document.createElement("br")));
                     }
-                    async save_settings(new_settings) {
-                        Bapi.saveData("CodingDND", "settings", new_settings);
+                    async save_settings() {
+                        Bapi.saveData("CodingDND", "settings", this.settings);
                     }
                     /**
                      * Create a set of switches to take in whether to check for their status
@@ -308,7 +326,9 @@ module.exports = (() => {
                         Logger.log(`Tracked ${name}`);
                         const alias = aliases[name];
                         this.settings.tracked_items[name] = true;
-                        this.targets.push(alias);
+                        if (alias) {
+                            this.targets.push(alias);
+                        } // prevent null in `targets`
                     }
                     /**
                      * Unregister a process from tracking
