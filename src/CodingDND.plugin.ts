@@ -401,7 +401,9 @@ module.exports = (() => {
                   callback: this.save_settings.bind(this),
                 }).append(...this.button_set()),
                 // this group is for selecting which statuses are set when running/not running targets
-                new Settings.SettingGroup("Statuses").append(
+                new Settings.SettingGroup("Statuses", {
+                  callback: this.save_settings.bind(this),
+                }).append(
                   new Settings.Dropdown(
                     "Active status",
                     "The status to set when one of the targets is running",
@@ -414,6 +416,7 @@ module.exports = (() => {
                     "Inactive status",
                     "The status to set when none of the targets are running",
                     this.settings.inactive_status,
+                    statuses,
                     (new_status: string) =>
                       (this.settings.inactive_status = new_status)
                   ),
