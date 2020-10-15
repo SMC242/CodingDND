@@ -35,11 +35,14 @@ WScript.Quit();
 const Bapi: any = BdApi;
 const { execSync } = require("child_process");
 
+interface process_parser {
+  (): Promise<Array<string>>;
+}
 /**
  * System agnostic method of finding all the process names
  * @returns The function to get the process names with duplicates and extensions removed.
  */
-async function get_process_parser(): Promise<Function> {
+function get_process_parser(): process_parser {
   // internal interface for defining system-specific info about the task list commands
   interface sys_settings {
     row_range: [number | undefined, number | undefined]; // where to slice the row to get the process name. Pass undefined to not set a limit
@@ -245,7 +248,7 @@ module.exports = (() => {
             settings: settings_obj;
             run_loop: boolean;
             last_status: string; // must be in ['online', 'invisible', 'idle', 'dnd']
-            get_all_processes: Promise<Function>;
+            get_all_processes: process_parser;
 
             constructor() {
               super();
