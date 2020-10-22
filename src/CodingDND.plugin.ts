@@ -308,6 +308,7 @@ module.exports = (() => {
               });
               this.run_loop = true; // ensure that the loop restarts in the case of a reload
               this.loop();
+              Logger.log("Tracking loop started");
             }
             onStop() {
               Logger.log("Stopped");
@@ -348,11 +349,13 @@ module.exports = (() => {
              */
             async loop() {
               const sleep = () => new Promise((r) => setTimeout(r, 30000)); // sleep for 30 seconds
+
               while (true) {
+                // exit if cancelled
                 if (!this.run_loop) {
                   Logger.log("Tracking loop killed.");
                   return;
-                } // exit if cancelled
+                }
 
                 // get the running targeted tasks
                 const current_targets: Array<string> = await this.check_tasks();
@@ -363,12 +366,15 @@ module.exports = (() => {
                     current_targets.includes(old_val) ? old_val : null
                   )
                   .filter(not_empty);
+
                 // add the tasks that started
                 current_targets.map((name) => {
                   if (!this.running.includes(name)) {
                     this.running.push(name);
                   }
                 });
+
+                // log the new `running`
                 Logger.log(
                   `Running targets detected: ${
                     this.running.length ? this.running : "None"
@@ -387,7 +393,7 @@ module.exports = (() => {
                   this.last_status = change_to;
                 }
 
-                // sleep for 15 seconds
+                // sleep for 30 seconds
                 await sleep();
               }
             }
@@ -401,10 +407,12 @@ module.exports = (() => {
               ];
               return Settings.SettingPanel.build(
                 this.save_settings.bind(this),
+
                 // this group is for selecting `targets`
                 new Settings.SettingGroup("Target Processes", {
                   callback: this.save_settings.bind(this),
                 }).append(...this.button_set()),
+
                 // this group is for selecting which statuses are set when running/not running targets
                 new Settings.SettingGroup("Statuses", {
                   callback: this.save_settings.bind(this),
