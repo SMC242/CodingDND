@@ -112,45 +112,53 @@ function not_empty<incoming_t>(
 }
 
 /**
- * @tracked_items the name of the target and whether it is currently being tracked
+ * An element of `settings_obj.tracked_items` that holds the information for an item.
+ * @process_names the possible names of the executable. This should contain names for all OSes and 64/32 bit versions.
+ * NOTE: do not include file extensions for compatibility with Linux
+ * @is_tracked whether the item is currently being searched for in the process list
+ */
+interface tracked_item {
+  process_names: Array<string>;
+  is_tracked: boolean;
+}
+
+/**
+ * @tracked_items the alias of the target and information about its tracking status and potential names.
  * @active_status The status to set when one of the targets is running. Must be one of: ["online", "idle", "invisible", "dnd"]
  * @inactive_status The status to set when one of the targets is not running. Must be one of: ["online", "idle", "invisible", "dnd"]
  */
 interface settings_obj {
-  tracked_items: { [name: string]: boolean };
+  tracked_items: { [alias: string]: tracked_item };
   active_status: string;
   inactive_status: string;
 }
 
-/**
- * Used for representing tracked processes. Processes will not always have the same name as the app so this is necessary.
- * @alias the name that the user sees. This covers the actual executable name. NOTE: the actual name must not have an extension for Linux compatibility
- */
-interface tracked_aliases {
-  [alias: string]: string | null;
-}
-
-const win_aliases: tracked_aliases = {
-  "Visual Studio Code": "Code",
-  Atom: "atom",
-  "Visual Studio": "devenv",
-  IntelliJ: "idea64", // !FIX: only works for 64bit. Maybe refactor tracked_aliases to be {string: Array<string>}
-  Eclipse: "eclipse",
-  Pycharm: "pycharm64",
+const default_tracked_items = {
+  Atom: {
+    process_names: ["atom"],
+    is_tracked: false,
+  },
+  Eclipse: {
+    process_names: ["eclipse"],
+    is_tracked: false,
+  },
+  "Intellij IDEA": {
+    process_names: ["idea", "idea64"],
+    is_tracked: false,
+  },
+  Pycharm: {
+    process_names: ["pycharm64", "charm"],
+    is_tracked: false,
+  },
+  "Visual Studio": {
+    process_names: ["devenv"],
+    is_tracked: false,
+  },
+  "Visual Studio Code": {
+    process_names: ["Code"],
+    is_tracked: false,
+  },
 };
-
-const linux_aliases: tracked_aliases = {
-  "Visual Studio Code": null,
-  Atom: "atom",
-  "Visual Studio": null,
-  IntelliJ: "idea", // !FIX: only works for 64bit. Maybe refactor tracked_aliases to be {string: Array<string>}
-  Eclipse: "eclipse",
-  Pycharm: "charm",
-};
-
-// use different aliases per OS
-const aliases: tracked_aliases =
-  process.platform === "win32" ? win_aliases : linux_aliases;
 
 module.exports = (() => {
   const config = {
