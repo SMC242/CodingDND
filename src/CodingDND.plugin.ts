@@ -456,7 +456,7 @@ module.exports = (() => {
                 return new Settings.Switch(
                   name,
                   "Set 'Do Not Disturb' when this process runs",
-                  this.settings.tracked_items[name],
+                  this.settings.tracked_items[name].is_tracked,
                   (new_val: string) => {
                     // prevent context loss
                     (new_val ? this.track.bind(this) : this.untrack.bind(this))(
@@ -473,11 +473,10 @@ module.exports = (() => {
              */
             track(name: string) {
               Logger.log(`Tracked ${name}`);
-              const alias = aliases[name];
-              this.settings.tracked_items[name] = true;
-              if (alias) {
-                this.targets.push(alias);
-              } // prevent null in `targets`
+              this.settings.tracked_items[name].is_tracked = true;
+              this.targets.push(
+                ...this.settings.tracked_items[name].process_names
+              );
             }
 
             /**
@@ -486,9 +485,13 @@ module.exports = (() => {
              */
             untrack(name: string) {
               Logger.log(`Untracked ${name}`);
-              const alias = aliases[name];
-              this.settings.tracked_items[name] = false;
-              this.targets = this.targets.filter((value) => value !== alias);
+              this.settings.tracked_items[name].is_tracked = false;
+              const actual_names: Array<string> = this.settings.tracked_items[
+                name
+              ].process_names;
+              this.targets.filter(
+                (value: string) => !actual_names.includes(value)
+              );
             }
           };
         };
