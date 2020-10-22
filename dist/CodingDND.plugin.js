@@ -84,24 +84,32 @@ function get_process_parser() {
 function not_empty(value) {
     return value != undefined; // checks for both null and undefined
 }
-const win_aliases = {
-    "Visual Studio Code": "Code",
-    Atom: "atom",
-    "Visual Studio": "devenv",
-    IntelliJ: "idea64",
-    Eclipse: "eclipse",
-    Pycharm: "pycharm64",
+const default_tracked_items = {
+    Atom: {
+        process_names: ["atom"],
+        is_tracked: false,
+    },
+    Eclipse: {
+        process_names: ["eclipse"],
+        is_tracked: false,
+    },
+    "Intellij IDEA": {
+        process_names: ["idea", "idea64"],
+        is_tracked: false,
+    },
+    Pycharm: {
+        process_names: ["pycharm64", "charm"],
+        is_tracked: false,
+    },
+    "Visual Studio": {
+        process_names: ["devenv"],
+        is_tracked: false,
+    },
+    "Visual Studio Code": {
+        process_names: ["Code"],
+        is_tracked: false,
+    },
 };
-const linux_aliases = {
-    "Visual Studio Code": null,
-    Atom: "atom",
-    "Visual Studio": null,
-    IntelliJ: "idea",
-    Eclipse: "eclipse",
-    Pycharm: "charm",
-};
-// use different aliases per OS
-const aliases = process.platform === "win32" ? win_aliases : linux_aliases;
 module.exports = (() => {
     const config = {
         info: {
@@ -175,28 +183,22 @@ module.exports = (() => {
                         this.running = [];
                         this.targets = [];
                         this.run_loop = true; // used to stop the loop
+                        // get process parser
+                        this.get_all_processes = get_process_parser(); // decide the platform only once
                         // initialise last_status to the current status
                         this.last_status = Bapi.findModuleByProps("getStatus").getStatus(Bapi.findModuleByProps("getToken").getId() // get the current user's ID
                         );
+                        // initialise the settings if this is the first run
                         this.settings = (_a = Bapi.loadData("CodingDND", "settings")) !== null && _a !== void 0 ? _a : {
-                            tracked_items: {
-                                "Visual Studio Code": false,
-                                Atom: false,
-                                IntelliJ: false,
-                                Eclipse: false,
-                                Pycharm: false,
-                                "Visual Studio": false,
-                            },
+                            tracked_items: default_tracked_items,
                             active_status: "dnd",
                             inactive_status: "online",
                         };
-                        // get the names of the processes
+                        // get the names of the currently tracked processes
                         this.targets = Array.from(Object.entries(this.settings.tracked_items), // get the key: value pairs
-                        (pair) => {
-                            return pair[1] ? aliases[pair[0]] : null; // only add the name's corresponding alias if it's tracked
+                        ([alias, item]) => {
+                            return item.is_tracked ? alias : null; // only add the name's corresponding alias if it's tracked
                         }).filter(not_empty); // only keep the strings
-                        // get process parser
-                        this.get_all_processes = get_process_parser(); // decide the platform only once
                     }
                     getName() {
                         return config.info.name;
@@ -217,6 +219,7 @@ module.exports = (() => {
                         });
                         this.run_loop = true; // ensure that the loop restarts in the case of a reload
                         this.loop();
+                        Logger.log("Tracking loop started");
                     }
                     onStop() {
                         Logger.log("Stopped");
@@ -253,10 +256,11 @@ module.exports = (() => {
                     async loop() {
                         const sleep = () => new Promise((r) => setTimeout(r, 30000)); // sleep for 30 seconds
                         while (true) {
+                            // exit if cancelled
                             if (!this.run_loop) {
                                 Logger.log("Tracking loop killed.");
                                 return;
-                            } // exit if cancelled
+                            }
                             // get the running targeted tasks
                             const current_targets = await this.check_tasks();
                             // remove the tasks that stopped
@@ -269,6 +273,7 @@ module.exports = (() => {
                                     this.running.push(name);
                                 }
                             });
+                            // log the new `running`
                             Logger.log(`Running targets detected: ${this.running.length ? this.running : "None"}`);
                             // set the status if running, remove status if not running
                             const change_to = this.running.length // an empty list is truthy BRUH
@@ -280,7 +285,7 @@ module.exports = (() => {
                                 this.set_status(change_to);
                                 this.last_status = change_to;
                             }
-                            // sleep for 15 seconds
+                            // sleep for 30 seconds
                             await sleep();
                         }
                     }
@@ -301,7 +306,9 @@ module.exports = (() => {
                             callback: this.save_settings.bind(this),
                         }).append(new Settings.Dropdown("Active status", "The status to set when one of the targets is running", this.settings.active_status, statuses, (new_status) => (this.settings.active_status = new_status)), new Settings.Dropdown("Inactive status", "The status to set when none of the targets are running", this.settings.inactive_status, statuses, (new_status) => (this.settings.inactive_status = new_status)), 
                         // these are needed because the bottommost options were getting cut off the screen
-                        document.createElement("br"), document.createElement("br"), document.createElement("br"), document.createElement("br"), document.createElement("br")));
+                        document.createElement("br"), document.createElement("br"), document.createElement("br"), document.createElement("br"), document.createElement("br")), 
+                        // this group is for tracking non-default processes
+                        new Settings.SettingGroup("Custom Targets").append(null));
                     }
                     async save_settings() {
                         Bapi.saveData("CodingDND", "settings", this.settings);
@@ -312,7 +319,7 @@ module.exports = (() => {
                      */
                     button_set() {
                         return Object.keys(this.settings.tracked_items).map((name) => {
-                            return new Settings.Switch(name, "Set 'Do Not Disturb' when this process runs", this.settings.tracked_items[name], (new_val) => {
+                            return new Settings.Switch(name, "Set 'Do Not Disturb' when this process runs", this.settings.tracked_items[name].is_tracked, (new_val) => {
                                 // prevent context loss
                                 (new_val ? this.track.bind(this) : this.untrack.bind(this))(name);
                             });
@@ -324,11 +331,8 @@ module.exports = (() => {
                      */
                     track(name) {
                         Logger.log(`Tracked ${name}`);
-                        const alias = aliases[name];
-                        this.settings.tracked_items[name] = true;
-                        if (alias) {
-                            this.targets.push(alias);
-                        } // prevent null in `targets`
+                        this.settings.tracked_items[name].is_tracked = true;
+                        this.targets.push(...this.settings.tracked_items[name].process_names);
                     }
                     /**
                      * Unregister a process from tracking
@@ -336,9 +340,9 @@ module.exports = (() => {
                      */
                     untrack(name) {
                         Logger.log(`Untracked ${name}`);
-                        const alias = aliases[name];
-                        this.settings.tracked_items[name] = false;
-                        this.targets = this.targets.filter((value) => value !== alias);
+                        this.settings.tracked_items[name].is_tracked = false;
+                        const actual_names = this.settings.tracked_items[name].process_names;
+                        this.targets = this.targets.filter((value) => !actual_names.includes(value));
                     }
                 };
             };
