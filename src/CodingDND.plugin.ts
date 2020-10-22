@@ -263,32 +263,29 @@ module.exports = (() => {
               this.running = [];
               this.targets = [];
               this.run_loop = true; // used to stop the loop
+
+              // get process parser
+              this.get_all_processes = get_process_parser(); // decide the platform only once
+
               // initialise last_status to the current status
               this.last_status = Bapi.findModuleByProps("getStatus").getStatus(
                 Bapi.findModuleByProps("getToken").getId() // get the current user's ID
               );
+
+              // initialise the settings if this is the first run
               this.settings = Bapi.loadData("CodingDND", "settings") ?? {
-                tracked_items: {
-                  "Visual Studio Code": false,
-                  Atom: false,
-                  IntelliJ: false,
-                  Eclipse: false,
-                  Pycharm: false,
-                  "Visual Studio": false,
-                },
+                default_tracked_items,
                 active_status: "dnd",
                 inactive_status: "online",
               };
-              // get the names of the processes
+
+              // get the names of the currently tracked processes
               this.targets = Array.from(
                 Object.entries(this.settings.tracked_items), // get the key: value pairs
-                (pair: [string, boolean]): string | null => {
-                  return pair[1] ? aliases[pair[0]] : null; // only add the name's corresponding alias if it's tracked
+                ([alias, item]: [string, tracked_item]): string | null => {
+                  return item.is_tracked ? alias : null; // only add the name's corresponding alias if it's tracked
                 }
               ).filter(not_empty); // only keep the strings
-
-              // get process parser
-              this.get_all_processes = get_process_parser(); // decide the platform only once
             }
 
             getName() {
