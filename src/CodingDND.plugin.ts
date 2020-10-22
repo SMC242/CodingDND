@@ -251,12 +251,12 @@ module.exports = (() => {
           const { Logger, Patcher, Settings } = Library;
 
           return class CodingDND extends Plugin {
-            targets: Array<string>;
-            running: Array<string>;
-            settings: settings_obj;
-            run_loop: boolean;
-            last_status: string; // must be in ['online', 'invisible', 'idle', 'dnd']
-            get_all_processes: process_parser;
+            targets: Array<string>; // the executable names to search for in the process list
+            running: Array<string>; // the currently running targets
+            settings: settings_obj; // the current settings. This will be saved to `CodingDND.config.json`
+            run_loop: boolean; // the flag for whether to keep the trakcing loop running
+            last_status: string; // The last status that was set. Used to avoid unnecessary API calls. Must be in ['online', 'invisible', 'idle', 'dnd']
+            get_all_processes: process_parser; // The function that gets the process list. This is defined at runtime
 
             constructor() {
               super();
