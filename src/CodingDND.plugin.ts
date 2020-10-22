@@ -489,7 +489,7 @@ module.exports = (() => {
               const actual_names: Array<string> = this.settings.tracked_items[
                 name
               ].process_names;
-              this.targets.filter(
+              this.targets = this.targets.filter(
                 (value: string) => !actual_names.includes(value)
               );
             }
