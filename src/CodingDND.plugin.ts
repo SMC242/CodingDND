@@ -274,7 +274,7 @@ module.exports = (() => {
 
               // initialise the settings if this is the first run
               this.settings = Bapi.loadData("CodingDND", "settings") ?? {
-                default_tracked_items,
+                tracked_items: default_tracked_items,
                 active_status: "dnd",
                 inactive_status: "online",
               };
