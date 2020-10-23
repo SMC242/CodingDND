@@ -308,7 +308,7 @@ module.exports = (() => {
                         // these are needed because the bottommost options were getting cut off the screen
                         document.createElement("br"), document.createElement("br"), document.createElement("br"), document.createElement("br"), document.createElement("br")), 
                         // this group is for tracking non-default processes
-                        new Settings.SettingGroup("Custom Targets").append(null));
+                        new Settings.SettingGroup("Custom Targets").append(new Settings.Dropdown()));
                     }
                     async save_settings() {
                         Bapi.saveData("CodingDND", "settings", this.settings);
