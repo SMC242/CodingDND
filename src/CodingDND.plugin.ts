@@ -447,12 +447,21 @@ module.exports = (() => {
             }
 
             getSettingsPanel() {
+              // prepare a list of possible statuses for the dropdown
               const statuses: Array<object> = [
                 { label: "Online", value: "online" },
                 { label: "Idle", value: "idle" },
                 { label: "Invisible", value: "invisible" },
                 { label: "Do Not Disturb", value: "dnd" },
               ];
+
+              // prepare a sorted list of statuses for the dropdown
+              const sorted_processes: Array<object> = merge_sort(
+                await this.get_all_processes()
+              ).map((name: string) => {
+                return { label: name, value: name };
+              });
+
               return Settings.SettingPanel.build(
                 this.save_settings.bind(this),
 
@@ -491,7 +500,14 @@ module.exports = (() => {
 
                 // this group is for tracking non-default processes
                 new Settings.SettingGroup("Custom Targets").append(
-                  new Settings.Dropdown()
+                  new Settings.Dropdown(
+                    "Select a custom target",
+                    "This will be added to the Target Processes menu",
+                    sorted_processes[0],
+                    sorted_processes,
+                    this.track_custom,
+                    { searchable: true }
+                  )
                 )
               );
             }

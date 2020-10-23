@@ -81,6 +81,47 @@ function get_process_parser() {
     const current_settings = process.platform === "win32" ? windows_settings : linux_settings;
     return () => parser(current_settings);
 }
+/**
+ * sort an array recursively by repeatedly splitting it in half and comparing the two pieces.
+ * NOTE: the complexity is O(n log n) and I chose this algorithm because it has a consistent complexity in best, average, and worst cases
+ * @param unsorted the array to sort
+ * @returns the sorted array
+ */
+function merge_sort(unsorted) {
+    // Merge the two arrays: left and right
+    function merge(left, right) {
+        let result = [];
+        let left_index = 0;
+        let right_index = 0;
+        // Concat the arrays until result is sorted
+        while (left_index < left.length && right_index < right.length) {
+            // check for one of the sides being empty
+            if (left[left_index] < right[right_index]) {
+                result.push(left[left_index]);
+                left_index++; // move left array cursor
+            }
+            else {
+                result.push(right[right_index]);
+                right_index++; // move right array cursor
+            }
+        }
+        // concat because there will be one element left in one of the lists
+        return result
+            .concat(left.slice(left_index))
+            .concat(right.slice(right_index));
+    }
+    // Don't sort unless there's multiple elements
+    if (unsorted.length <= 1) {
+        return unsorted;
+    }
+    // find the middle index
+    const middle = Math.floor(unsorted.length / 2);
+    // Split the array
+    const left = unsorted.slice(0, middle);
+    const right = unsorted.slice(middle);
+    // Recurse until finished
+    return merge(merge_sort(left), merge_sort(right));
+}
 function not_empty(value) {
     return value != undefined; // checks for both null and undefined
 }
@@ -290,12 +331,17 @@ module.exports = (() => {
                         }
                     }
                     getSettingsPanel() {
+                        // prepare a list of possible statuses for the dropdown
                         const statuses = [
                             { label: "Online", value: "online" },
                             { label: "Idle", value: "idle" },
                             { label: "Invisible", value: "invisible" },
                             { label: "Do Not Disturb", value: "dnd" },
                         ];
+                        // prepare a sorted list of statuses for the dropdown
+                        const sorted_processes = merge_sort(await this.get_all_processes()).map((name) => {
+                            return { label: name, value: name };
+                        });
                         return Settings.SettingPanel.build(this.save_settings.bind(this), 
                         // this group is for selecting `targets`
                         new Settings.SettingGroup("Target Processes", {
@@ -308,7 +354,7 @@ module.exports = (() => {
                         // these are needed because the bottommost options were getting cut off the screen
                         document.createElement("br"), document.createElement("br"), document.createElement("br"), document.createElement("br"), document.createElement("br")), 
                         // this group is for tracking non-default processes
-                        new Settings.SettingGroup("Custom Targets").append(new Settings.Dropdown()));
+                        new Settings.SettingGroup("Custom Targets").append(new Settings.Dropdown("Select a custom target", "This will be added to the Target Processes menu", sorted_processes[0], sorted_processes, this.track_custom, { searchable: true })));
                     }
                     async save_settings() {
                         Bapi.saveData("CodingDND", "settings", this.settings);
