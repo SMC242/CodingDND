@@ -117,6 +117,13 @@ module.exports = (() => {
                     "Please tell me if you find any bugs.",
                 ],
             },
+            {
+                title: "Settings menu fixed",
+                items: [
+                    "The settings menu has been re-enabled.",
+                    "I'm working on custom targets at the moment - stay posted."
+                ]
+            }
         ],
         main: "CodingDND.plugin.js",
     };
@@ -272,20 +279,14 @@ module.exports = (() => {
                         }
                     }
                     getSettingsPanel() {
-                        /**
-                        const statuses: Array<object> = [
+                        const statuses = [
                           { label: "Online", value: "online" },
                           { label: "Idle", value: "idle" },
                           { label: "Invisible", value: "invisible" },
                           { label: "Do Not Disturb", value: "dnd" },
                         ];
-                        */
-                        const p = document.createElement("p");
-                        p.innerHTML =
-                            "Sorry, the settings menu doesn't work right now. Please edit CodingDND.config.json directly :)";
                         return Settings.SettingPanel.build(this.save_settings.bind(this), 
                         // this group is for selecting `targets`
-                        /**
                         new Settings.SettingGroup("Target Processes", {
                           callback: this.save_settings.bind(this),
                         }).append(...this.button_set()),
@@ -298,7 +299,7 @@ module.exports = (() => {
                             "The status to set when one of the targets is running",
                             this.settings.active_status,
                             statuses,
-                            (new_status: string) =>
+                            (new_status) =>
                               (this.settings.active_status = new_status)
                           ),
                           new Settings.Dropdown(
@@ -306,7 +307,7 @@ module.exports = (() => {
                             "The status to set when none of the targets are running",
                             this.settings.inactive_status,
                             statuses,
-                            (new_status: string) =>
+                            (new_status) =>
                               (this.settings.inactive_status = new_status)
                           ),
                           // these are needed because the bottommost options were getting cut off the screen
@@ -315,8 +316,7 @@ module.exports = (() => {
                           document.createElement("br"),
                           document.createElement("br"),
                           document.createElement("br")
-                        )*/
-                        p);
+                        ));
                     }
                     async save_settings(new_settings) {
                         Bapi.saveData("CodingDND", "settings", new_settings);
