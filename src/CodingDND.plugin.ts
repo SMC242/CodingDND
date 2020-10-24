@@ -223,7 +223,7 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "0.25",
+      version: "0.5",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
@@ -239,6 +239,13 @@ module.exports = (() => {
           "All of the planned IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
           "The tracking loop should work.",
           "Please tell me if you find any bugs.",
+        ],
+      },
+      {
+        title: "Custom Process Update",
+        type: "added",
+        items: [
+          "There is now a menu in settings where you can select non-default processes to track.",
         ],
       },
     ],
