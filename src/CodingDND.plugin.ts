@@ -32,7 +32,7 @@ WScript.Quit();
 */
 
 // @ts-ignore
-const Bapi: any = BdApi;
+let BdApi: any = BdApi;
 const { execSync } = require("child_process");
 
 // typescript stuff
@@ -229,8 +229,6 @@ module.exports = (() => {
       github: "https://github.com/SMC242/CodingDND/tree/stable",
       github_raw:
         "https://github.com/SMC242/CodingDND/blob/stable/CodingDND.plugin.js",
-      source:
-        "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.ts",
     },
     changelog: [
       {
@@ -272,7 +270,7 @@ module.exports = (() => {
           return config.info.version;
         }
         load() {
-          Bapi.showConfirmationModal(
+          BdApi.showConfirmationModal(
             "Library Missing",
             `The library plugin needed for ${config.info.name} is missing. Please click Download Now to install it.`,
             {
@@ -289,7 +287,7 @@ module.exports = (() => {
                     await new Promise((r) =>
                       require("fs").writeFile(
                         require("path").join(
-                          Bapi.Plugins.folder,
+                          BdApi.Plugins.folder,
                           "0PluginLibrary.plugin.js"
                         ),
                         body,
@@ -329,12 +327,12 @@ module.exports = (() => {
               this.get_all_processes = get_process_parser(); // decide the platform only once
 
               // initialise last_status to the current status
-              this.last_status = Bapi.findModuleByProps("getStatus").getStatus(
-                Bapi.findModuleByProps("getToken").getId() // get the current user's ID
+              this.last_status = BdApi.findModuleByProps("getStatus").getStatus(
+                BdApi.findModuleByProps("getToken").getId() // get the current user's ID
               );
 
               // initialise the settings if this is the first run
-              this.settings = Bapi.loadData("CodingDND", "settings") ?? {
+              this.settings = BdApi.loadData("CodingDND", "settings") ?? {
                 tracked_items: default_tracked_items,
                 active_status: "dnd",
                 inactive_status: "online",
@@ -383,7 +381,7 @@ module.exports = (() => {
              * @param set_to The status to set. This may be dnd, online, invisible, or idle
              */
             async set_status(set_to: string): Promise<void> {
-              let UserSettingsUpdater = Bapi.findModuleByProps(
+              let UserSettingsUpdater = BdApi.findModuleByProps(
                 "updateLocalSettings"
               );
               UserSettingsUpdater.updateLocalSettings({
@@ -569,7 +567,7 @@ module.exports = (() => {
             }
 
             async save_settings(): Promise<void> {
-              Bapi.saveData("CodingDND", "settings", this.settings);
+              BdApi.saveData("CodingDND", "settings", this.settings);
             }
 
             /**
@@ -636,7 +634,7 @@ module.exports = (() => {
               this.save_settings();
 
               // notify user
-              Bapi.showToast(
+              BdApi.showToast(
                 `${name} can now be selected in the Target Processes menu`,
                 { type: "info" }
               );
