@@ -1,9 +1,9 @@
 /**
  * @name CodingDND
  * @invite AaMz4gp
- * @authorId 395598378387636234
+ * @authorId "395598378387636234"
  * @website https://github.com/SMC242/CodingDND
- * @source https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js
+ * @source https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js
  */
 /**
 @cc_on
@@ -32,11 +32,15 @@ WScript.Quit();
 // @ts-ignore
 const Bapi = BdApi;
 const { execSync } = require("child_process");
+// typescript stuff
+function not_empty(value) {
+    return value != undefined; // checks for both null and undefined
+}
 /**
  * System agnostic method of finding all the process names
- * @returns The process names with duplicates and extensions removed.
+ * @returns The function to get the process names with duplicates and extensions removed.
  */
-async function get_all_processes() {
+function get_process_parser() {
     /**
      * Removes the file extension if exists.
      * @param process_name The name to remove the extension from
@@ -78,18 +82,75 @@ async function get_all_processes() {
         command: "ps -aux",
     };
     // decide which platform is being used
-    return await parser(process.platform === "win32" ? windows_settings : linux_settings);
+    const current_settings = process.platform === "win32" ? windows_settings : linux_settings;
+    return () => parser(current_settings);
 }
-function not_empty(value) {
-    return value != undefined; // checks for both null and undefined
+/**
+ * sort an array recursively by repeatedly splitting it in half and comparing the two pieces.
+ * NOTE: the complexity is O(n log n) and I chose this algorithm because it has a consistent complexity in best, average, and worst cases
+ * @param unsorted the array to sort
+ * @returns the sorted array
+ */
+function merge_sort(unsorted) {
+    // Merge the two arrays: left and right
+    function merge(left, right) {
+        let result = [];
+        let left_index = 0;
+        let right_index = 0;
+        // Concat the arrays until result is sorted
+        while (left_index < left.length && right_index < right.length) {
+            // check for one of the sides being empty
+            if (left[left_index] < right[right_index]) {
+                result.push(left[left_index]);
+                left_index++; // move left array cursor
+            }
+            else {
+                result.push(right[right_index]);
+                right_index++; // move right array cursor
+            }
+        }
+        // concat because there will be one element left in one of the lists
+        return result
+            .concat(left.slice(left_index))
+            .concat(right.slice(right_index));
+    }
+    // Don't sort unless there's multiple elements
+    if (unsorted.length <= 1) {
+        return unsorted;
+    }
+    // find the middle index
+    const middle = Math.floor(unsorted.length / 2);
+    // Split the array
+    const left = unsorted.slice(0, middle);
+    const right = unsorted.slice(middle);
+    // Recurse until finished
+    return merge(merge_sort(left), merge_sort(right));
 }
-const aliases = {
-    "Visual Studio Code": "Code",
-    Atom: "atom",
-    "Visual Studio": "devenv",
-    IntelliJ: "idea64",
-    Eclipse: "eclipse",
-    Pycharm: "pycharm64",
+const default_tracked_items = {
+    Atom: {
+        process_names: ["atom"],
+        is_tracked: false,
+    },
+    Eclipse: {
+        process_names: ["eclipse"],
+        is_tracked: false,
+    },
+    "Intellij IDEA": {
+        process_names: ["idea", "idea64"],
+        is_tracked: false,
+    },
+    Pycharm: {
+        process_names: ["pycharm64", "charm"],
+        is_tracked: false,
+    },
+    "Visual Studio": {
+        process_names: ["devenv"],
+        is_tracked: false,
+    },
+    "Visual Studio Code": {
+        process_names: ["Code"],
+        is_tracked: false,
+    },
 };
 module.exports = (() => {
     const config = {
@@ -102,10 +163,10 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "0.25",
+            version: "0.5",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
-            github: "https://github.com/SMC242/CodingDND",
-            github_raw: "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.js",
+            github: "https://github.com/SMC242/CodingDND/tree/stable",
+            github_raw: "https://github.com/SMC242/CodingDND/blob/stable/CodingDND.plugin.js",
             source: "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.ts",
         },
         changelog: [
@@ -118,12 +179,12 @@ module.exports = (() => {
                 ],
             },
             {
-                title: "Settings menu fixed",
+                title: "Custom Process Update",
+                type: "added",
                 items: [
-                    "The settings menu has been re-enabled.",
-                    "I'm working on custom targets at the moment - stay posted."
-                ]
-            }
+                    "There is now a menu in settings where you can select non-default processes to track.",
+                ],
+            },
         ],
         main: "CodingDND.plugin.js",
     };
@@ -171,32 +232,29 @@ module.exports = (() => {
                         this.running = [];
                         this.targets = [];
                         this.run_loop = true; // used to stop the loop
+                        this.settings_panel;
+                        // get process parser
+                        this.get_all_processes = get_process_parser(); // decide the platform only once
                         // initialise last_status to the current status
                         this.last_status = Bapi.findModuleByProps("getStatus").getStatus(Bapi.findModuleByProps("getToken").getId() // get the current user's ID
                         );
+                        // initialise the settings if this is the first run
                         this.settings = (_a = Bapi.loadData("CodingDND", "settings")) !== null && _a !== void 0 ? _a : {
-                            tracked_items: {
-                                "Visual Studio Code": false,
-                                Atom: false,
-                                IntelliJ: false,
-                                Eclipse: false,
-                                Pycharm: false,
-                                "Visual Studio": false,
-                            },
+                            tracked_items: default_tracked_items,
                             active_status: "dnd",
                             inactive_status: "online",
                         };
-                        // get the names of the processes
+                        // get the names of the currently tracked processes
                         this.targets = Array.from(Object.entries(this.settings.tracked_items), // get the key: value pairs
-                        (pair) => {
-                            return pair[1] ? aliases[pair[0]] : null; // only add the name's corresponding alias if it's tracked
+                        ([alias, item]) => {
+                            return item.is_tracked ? alias : null; // only add the name's corresponding alias if it's tracked
                         }).filter(not_empty); // only keep the strings
                     }
                     getName() {
                         return config.info.name;
                     }
                     getAuthor() {
-                        return config.info.name;
+                        return config.info.authors.map((a) => a.name).join(", ");
                     }
                     getDescription() {
                         return config.info.description;
@@ -211,6 +269,7 @@ module.exports = (() => {
                         });
                         this.run_loop = true; // ensure that the loop restarts in the case of a reload
                         this.loop();
+                        Logger.log("Tracking loop started");
                     }
                     onStop() {
                         Logger.log("Stopped");
@@ -232,7 +291,7 @@ module.exports = (() => {
                      * Get the targeted tasks that are running
                      */
                     async check_tasks() {
-                        const current_tasks = await get_all_processes();
+                        const current_tasks = await this.get_all_processes();
                         return current_tasks
                             .map((process_name) => {
                             return this.targets.includes(process_name)
@@ -247,10 +306,11 @@ module.exports = (() => {
                     async loop() {
                         const sleep = () => new Promise((r) => setTimeout(r, 30000)); // sleep for 30 seconds
                         while (true) {
+                            // exit if cancelled
                             if (!this.run_loop) {
                                 Logger.log("Tracking loop killed.");
                                 return;
-                            } // exit if cancelled
+                            }
                             // get the running targeted tasks
                             const current_targets = await this.check_tasks();
                             // remove the tasks that stopped
@@ -263,6 +323,7 @@ module.exports = (() => {
                                     this.running.push(name);
                                 }
                             });
+                            // log the new `running`
                             Logger.log(`Running targets detected: ${this.running.length ? this.running : "None"}`);
                             // set the status if running, remove status if not running
                             const change_to = this.running.length // an empty list is truthy BRUH
@@ -274,52 +335,67 @@ module.exports = (() => {
                                 this.set_status(change_to);
                                 this.last_status = change_to;
                             }
-                            // sleep for 15 seconds
+                            // sleep for 30 seconds
                             await sleep();
                         }
                     }
                     getSettingsPanel() {
+                        // prepare a list of possible statuses for the dropdown
                         const statuses = [
-                          { label: "Online", value: "online" },
-                          { label: "Idle", value: "idle" },
-                          { label: "Invisible", value: "invisible" },
-                          { label: "Do Not Disturb", value: "dnd" },
+                            { label: "Online", value: "online" },
+                            { label: "Idle", value: "idle" },
+                            { label: "Invisible", value: "invisible" },
+                            { label: "Do Not Disturb", value: "dnd" },
                         ];
-                        return Settings.SettingPanel.build(this.save_settings.bind(this), 
+                        // Put a temporary value in the custom targets Settings.SettingGroup until `get_all_processes` finishes
+                        let processes_not_loaded_warning = document.createElement("p");
+                        processes_not_loaded_warning = Object.assign(processes_not_loaded_warning, {
+                            innerHTML: "Processes loading...",
+                            id: "processes_not_loaded_warning",
+                        });
+                        // these are needed because the bottommost options in dropdowns were getting cut off the screen
+                        let br_padding = [];
+                        for (let i = 0; i < 10; i++) {
+                            br_padding = br_padding.concat(document.createElement("br"));
+                        }
+                        //  populate the list of processes of the dropdown whenever it finishes
+                        this.get_all_processes().then((process_list) => {
+                            const warning = document.getElementById("processes_not_loaded_warning");
+                            // something went wrong if it's null
+                            if (!warning) {
+                                return;
+                            }
+                            // insert a dropdown now that it's loaded
+                            const setting_group = warning.parentElement;
+                            if (!setting_group) {
+                                return;
+                            }
+                            // sort and parse the processes
+                            let sorted_processes = merge_sort(process_list).map((name) => {
+                                // change it to the dropdownitem format
+                                return { label: name, value: name };
+                            });
+                            sorted_processes = sorted_processes.slice(1); // remove the empty string at index 0
+                            setting_group.appendChild(new Settings.Dropdown("Select a custom target", "This will be added to the Target Processes menu", sorted_processes[0], sorted_processes, this.add_custom_task.bind(this), { searchable: true }).getElement());
+                            br_padding.map((element) => setting_group.appendChild(element)); // add padding
+                            warning.remove(); // clean up the warning
+                        });
+                        // create and save the settings panel
+                        this.settings_panel = Settings.SettingPanel.build(this.save_settings.bind(this), 
                         // this group is for selecting `targets`
                         new Settings.SettingGroup("Target Processes", {
-                          callback: this.save_settings.bind(this),
-                        }).append(...this.button_set()),
+                            callback: this.save_settings.bind(this),
+                        }).append(...this.button_set()), 
                         // this group is for selecting which statuses are set when running/not running targets
                         new Settings.SettingGroup("Statuses", {
-                          callback: this.save_settings.bind(this),
-                        }).append(
-                          new Settings.Dropdown(
-                            "Active status",
-                            "The status to set when one of the targets is running",
-                            this.settings.active_status,
-                            statuses,
-                            (new_status) =>
-                              (this.settings.active_status = new_status)
-                          ),
-                          new Settings.Dropdown(
-                            "Inactive status",
-                            "The status to set when none of the targets are running",
-                            this.settings.inactive_status,
-                            statuses,
-                            (new_status) =>
-                              (this.settings.inactive_status = new_status)
-                          ),
-                          // these are needed because the bottommost options were getting cut off the screen
-                          document.createElement("br"),
-                          document.createElement("br"),
-                          document.createElement("br"),
-                          document.createElement("br"),
-                          document.createElement("br")
-                        ));
+                            callback: this.save_settings.bind(this),
+                        }).append(new Settings.Dropdown("Active status", "The status to set when one of the targets is running", this.settings.active_status, statuses, (new_status) => (this.settings.active_status = new_status)), new Settings.Dropdown("Inactive status", "The status to set when none of the targets are running", this.settings.inactive_status, statuses, (new_status) => (this.settings.inactive_status = new_status)), ...br_padding), 
+                        // this group is for tracking non-default processes
+                        new Settings.SettingGroup("Custom Targets").append(processes_not_loaded_warning));
+                        return this.settings_panel;
                     }
-                    async save_settings(new_settings) {
-                        Bapi.saveData("CodingDND", "settings", new_settings);
+                    async save_settings() {
+                        Bapi.saveData("CodingDND", "settings", this.settings);
                     }
                     /**
                      * Create a set of switches to take in whether to check for their status
@@ -327,7 +403,7 @@ module.exports = (() => {
                      */
                     button_set() {
                         return Object.keys(this.settings.tracked_items).map((name) => {
-                            return new Settings.Switch(name, "Set 'Do Not Disturb' when this process runs", this.settings.tracked_items[name], (new_val) => {
+                            return new Settings.Switch(name, "Set 'Do Not Disturb' when this process runs", this.settings.tracked_items[name].is_tracked, (new_val) => {
                                 // prevent context loss
                                 (new_val ? this.track.bind(this) : this.untrack.bind(this))(name);
                             });
@@ -339,9 +415,8 @@ module.exports = (() => {
                      */
                     track(name) {
                         Logger.log(`Tracked ${name}`);
-                        const alias = aliases[name];
-                        this.settings.tracked_items[name] = true;
-                        this.targets.push(alias);
+                        this.settings.tracked_items[name].is_tracked = true;
+                        this.targets.push(...this.settings.tracked_items[name].process_names);
                     }
                     /**
                      * Unregister a process from tracking
@@ -349,9 +424,37 @@ module.exports = (() => {
                      */
                     untrack(name) {
                         Logger.log(`Untracked ${name}`);
-                        const alias = aliases[name];
-                        this.settings.tracked_items[name] = false;
-                        this.targets = this.targets.filter((value) => value !== alias);
+                        this.settings.tracked_items[name].is_tracked = false;
+                        const actual_names = this.settings
+                            .tracked_items[name].process_names;
+                        this.targets = this.targets.filter((value) => !actual_names.includes(value));
+                    }
+                    /**
+                     * Add a user-inputted task to `settings.tracked_items`
+                     * @param name the name to register
+                     */
+                    add_custom_task(name) {
+                        // `null` is passed to this function if the user clicks while the tasks load
+                        if (!name) {
+                            return;
+                        }
+                        this.settings.tracked_items[name] = {
+                            process_names: [name],
+                            is_tracked: false,
+                        };
+                        // save the new settings as this won't be caught by `on_change` due to the fuckery with adding the dropdown after the panel is created
+                        this.save_settings();
+                        // notify user
+                        Bapi.showToast(`${name} can now be selected in the Target Processes menu`, { type: "info" });
+                        // add it to the settings panel
+                        const target_processes_settings_group = this
+                            .settings_panel.childNodes[0]; // settings_panel will be defined when this is called
+                        const group_elements = target_processes_settings_group.childNodes;
+                        const switch_list = group_elements[3];
+                        switch_list.appendChild(new Settings.Switch(name, "Set 'Do Not Disturb' when this process runs", this.settings.tracked_items[name].is_tracked, (new_val) => {
+                            // prevent context loss
+                            (new_val ? this.track.bind(this) : this.untrack.bind(this))(name);
+                        }).getElement());
                     }
                 };
             };
