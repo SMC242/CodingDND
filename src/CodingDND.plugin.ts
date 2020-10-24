@@ -35,9 +35,19 @@ WScript.Quit();
 const Bapi: any = BdApi;
 const { execSync } = require("child_process");
 
+// typescript stuff
+function not_empty<incoming_t>(
+  value: incoming_t | null | undefined
+): value is incoming_t {
+  return value != undefined; // checks for both null and undefined
+}
+
+type process_list_type = Array<string>;
+
 interface process_parser {
   (): Promise<Array<string>>;
 }
+
 /**
  * System agnostic method of finding all the process names
  * @returns The function to get the process names with duplicates and extensions removed.
@@ -68,7 +78,7 @@ function get_process_parser(): process_parser {
    */
   async function parser(
     system_specifics: sys_settings
-  ): Promise<Array<string>> {
+  ): Promise<process_list_type> {
     let processes: Set<string> = new Set();
 
     // this returns a buffer which is converted to string
@@ -153,12 +163,6 @@ function merge_sort(unsorted: Array<string>): Array<string> {
   return merge(merge_sort(left), merge_sort(right));
 }
 
-function not_empty<incoming_t>(
-  value: incoming_t | null | undefined
-): value is incoming_t {
-  return value != undefined; // checks for both null and undefined
-}
-
 /**
  * An element of `settings_obj.tracked_items` that holds the information for an item.
  * @process_names the possible names of the executable. This should contain names for all OSes and 64/32 bit versions.
@@ -166,7 +170,7 @@ function not_empty<incoming_t>(
  * @is_tracked whether the item is currently being searched for in the process list
  */
 interface tracked_item {
-  process_names: Array<string>;
+  process_names: process_list_type;
   is_tracked: boolean;
 }
 
@@ -299,7 +303,7 @@ module.exports = (() => {
           const { Logger, Patcher, Settings } = Library;
 
           return class CodingDND extends Plugin {
-            targets: Array<string>; // the executable names to search for in the process list
+            targets: process_list_type; // the executable names to search for in the process list
             running: Array<string>; // the currently running targets
             settings: settings_obj; // the current settings. This will be saved to `CodingDND.config.json`
             run_loop: boolean; // the flag for whether to keep the trakcing loop running
@@ -381,7 +385,7 @@ module.exports = (() => {
             /**
              * Get the targeted tasks that are running
              */
-            async check_tasks(): Promise<Array<string>> {
+            async check_tasks(): Promise<process_list_type> {
               const current_tasks = await this.get_all_processes();
               return current_tasks
                 .map((process_name) => {
@@ -406,7 +410,7 @@ module.exports = (() => {
                 }
 
                 // get the running targeted tasks
-                const current_targets: Array<string> = await this.check_tasks();
+                const current_targets: process_list_type = await this.check_tasks();
 
                 // remove the tasks that stopped
                 this.running = this.running
