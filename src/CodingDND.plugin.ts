@@ -550,12 +550,7 @@ module.exports = (() => {
                     (new_status: string) =>
                       (this.settings.inactive_status = new_status)
                   ),
-                  // these are needed because the bottommost options were getting cut off the screen
-                  document.createElement("br"),
-                  document.createElement("br"),
-                  document.createElement("br"),
-                  document.createElement("br"),
-                  document.createElement("br")
+                  ...br_padding
                 ),
 
                 // this group is for tracking non-default processes
@@ -609,9 +604,8 @@ module.exports = (() => {
             untrack(name: string) {
               Logger.log(`Untracked ${name}`);
               this.settings.tracked_items[name].is_tracked = false;
-              const actual_names: Array<string> = this.settings.tracked_items[
-                name
-              ].process_names;
+              const actual_names: process_list_type = this.settings
+                .tracked_items[name].process_names;
               this.targets = this.targets.filter(
                 (value: string) => !actual_names.includes(value)
               );
