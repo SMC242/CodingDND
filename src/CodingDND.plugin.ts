@@ -616,6 +616,50 @@ module.exports = (() => {
                 (value: string) => !actual_names.includes(value)
               );
             }
+
+            /**
+             * Add a user-inputted task to `settings.tracked_items`
+             * @param name the name to register
+             */
+            add_custom_task(name: string | null) {
+              // `null` is passed to this function if the user clicks while the tasks load
+              if (!name) {
+                return;
+              }
+              this.settings.tracked_items[name] = {
+                process_names: [name],
+                is_tracked: false,
+              };
+
+              // save the new settings as this won't be caught by `on_change` due to the fuckery with adding the dropdown after the panel is created
+              this.save_settings();
+
+              // notify user
+              Bapi.showToast(
+                `${name} can now be selected in the Target Processes menu`,
+                { type: "info" }
+              );
+
+              // add it to the settings panel
+              const target_processes_settings_group = (this
+                .settings_panel as HTMLElement).childNodes[0]; // settings_panel will be defined when this is called
+              const group_elements: NodeList =
+                target_processes_settings_group.childNodes;
+              const switch_list = group_elements[3];
+              switch_list.appendChild(
+                new Settings.Switch(
+                  name,
+                  "Set 'Do Not Disturb' when this process runs",
+                  this.settings.tracked_items[name].is_tracked,
+                  (new_val: string) => {
+                    // prevent context loss
+                    (new_val ? this.track.bind(this) : this.untrack.bind(this))(
+                      name
+                    );
+                  }
+                ).getElement()
+              );
+            }
           };
         };
         return CodingDND(Plugin, Api);
