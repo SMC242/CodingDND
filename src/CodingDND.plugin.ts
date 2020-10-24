@@ -309,12 +309,14 @@ module.exports = (() => {
             run_loop: boolean; // the flag for whether to keep the trakcing loop running
             last_status: string; // The last status that was set. Used to avoid unnecessary API calls. Must be in ['online', 'invisible', 'idle', 'dnd']
             get_all_processes: process_parser; // The function that gets the process list. This is defined at runtime
+            settings_panel: HTMLElement | undefined; // the Settings.SettingsPanel to be updated after some variables load
 
             constructor() {
               super();
               this.running = [];
               this.targets = [];
               this.run_loop = true; // used to stop the loop
+              this.settings_panel;
 
               // get process parser
               this.get_all_processes = get_process_parser(); // decide the platform only once
@@ -459,14 +461,68 @@ module.exports = (() => {
                 { label: "Do Not Disturb", value: "dnd" },
               ];
 
-              // prepare a sorted list of statuses for the dropdown
-              const sorted_processes: Array<object> = merge_sort(
-                await this.get_all_processes()
-              ).map((name: string) => {
-                return { label: name, value: name };
-              });
+              // Put a temporary value in the custom targets Settings.SettingGroup until `get_all_processes` finishes
+              let processes_not_loaded_warning: HTMLElement = document.createElement(
+                "p"
+              );
+              processes_not_loaded_warning = Object.assign(
+                processes_not_loaded_warning,
+                {
+                  innerHTML: "Processes loading...",
+                  id: "processes_not_loaded_warning",
+                }
+              );
 
-              return Settings.SettingPanel.build(
+              // these are needed because the bottommost options in dropdowns were getting cut off the screen
+              let br_padding: Array<HTMLElement> = [];
+              for (let i = 0; i < 10; i++) {
+                br_padding = br_padding.concat(document.createElement("br"));
+              }
+
+              //  populate the list of processes of the dropdown whenever it finishes
+              this.get_all_processes().then(
+                (process_list: process_list_type) => {
+                  const warning = document.getElementById(
+                    "processes_not_loaded_warning"
+                  );
+                  // something went wrong if it's null
+                  if (!warning) {
+                    return;
+                  }
+
+                  // insert a dropdown now that it's loaded
+                  const setting_group = warning.parentElement;
+                  if (!setting_group) {
+                    return;
+                  }
+
+                  // sort and parse the processes
+                  let sorted_processes = merge_sort(process_list).map(
+                    (name: string) => {
+                      // change it to the dropdownitem format
+                      return { label: name, value: name };
+                    }
+                  );
+                  sorted_processes = sorted_processes.slice(1); // remove the empty string at index 0
+                  setting_group.appendChild(
+                    new Settings.Dropdown(
+                      "Select a custom target",
+                      "This will be added to the Target Processes menu",
+                      sorted_processes[0],
+                      sorted_processes,
+                      this.add_custom_task.bind(this),
+                      { searchable: true }
+                    ).getElement()
+                  );
+                  br_padding.map((element: HTMLElement) =>
+                    setting_group.appendChild(element)
+                  ); // add padding
+                  warning.remove(); // clean up the warning
+                }
+              );
+
+              // create and save the settings panel
+              this.settings_panel = Settings.SettingPanel.build(
                 this.save_settings.bind(this),
 
                 // this group is for selecting `targets`
@@ -504,16 +560,10 @@ module.exports = (() => {
 
                 // this group is for tracking non-default processes
                 new Settings.SettingGroup("Custom Targets").append(
-                  new Settings.Dropdown(
-                    "Select a custom target",
-                    "This will be added to the Target Processes menu",
-                    sorted_processes[0],
-                    sorted_processes,
-                    this.track_custom,
-                    { searchable: true }
-                  )
+                  processes_not_loaded_warning
                 )
               );
+              return this.settings_panel;
             }
 
             async save_settings(): Promise<void> {
