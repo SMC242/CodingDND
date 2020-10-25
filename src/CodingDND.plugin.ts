@@ -375,6 +375,10 @@ module.exports = (() => {
               Patcher.unpatchAll();
             }
 
+            load() {
+              super.load();
+            }
+
             /**
              * Set the user's status
              * @param set_to The status to set. This may be dnd, online, invisible, or idle

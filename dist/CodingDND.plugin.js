@@ -166,8 +166,7 @@ module.exports = (() => {
             version: "0.2.5",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
-            github_raw: "https://github.com/SMC242/CodingDND/blob/stable/CodingDND.plugin.js",
-            source: "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.ts",
+            github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
         },
         changelog: [
             {
@@ -276,7 +275,9 @@ module.exports = (() => {
                         this.run_loop = false;
                         Patcher.unpatchAll();
                     }
-                    load() { }
+                    load() {
+                        super.load();
+                    }
                     /**
                      * Set the user's status
                      * @param set_to The status to set. This may be dnd, online, invisible, or idle
