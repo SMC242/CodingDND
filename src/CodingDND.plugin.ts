@@ -374,7 +374,6 @@ module.exports = (() => {
               this.run_loop = false;
               Patcher.unpatchAll();
             }
-            load() {}
 
             /**
              * Set the user's status
