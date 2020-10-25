@@ -228,9 +228,7 @@ module.exports = (() => {
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
       github_raw:
-        "https://github.com/SMC242/CodingDND/blob/stable/CodingDND.plugin.js",
-      source:
-        "https://github.com/SMC242/CodingDND/blob/master/src/CodingDND.plugin.ts",
+        "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
     },
     changelog: [
       {
