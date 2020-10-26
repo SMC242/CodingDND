@@ -1,6 +1,6 @@
 /**
  * @name CodingDND
- * @invite AaMz4gp
+ * @invite d65ujkS
  * @authorId "395598378387636234"
  * @website https://github.com/SMC242/CodingDND
  * @source https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js
@@ -626,6 +626,15 @@ module.exports = (() => {
             add_custom_task(name: string | null) {
               // `null` is passed to this function if the user clicks while the tasks load
               if (!name) {
+                return;
+              }
+
+              // ignore already added processes
+              if (name in this.settings.tracked_items) {
+                Bapi.showToast(
+                  "That has already been added! See the Target Processes menu to enable it.",
+                  { type: "error" }
+                );
                 return;
               }
               this.settings.tracked_items[name] = {
