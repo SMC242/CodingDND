@@ -628,6 +628,15 @@ module.exports = (() => {
               if (!name) {
                 return;
               }
+
+              // ignore already added processes
+              if (name in this.settings.tracked_items) {
+                Bapi.showToast(
+                  "That has already been added! See the Target Processes menu to enable it.",
+                  { type: "error" }
+                );
+                return;
+              }
               this.settings.tracked_items[name] = {
                 process_names: [name],
                 is_tracked: false,
