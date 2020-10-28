@@ -8,6 +8,7 @@ NOTE: does not support Linux for now.
 <a href = "https://ibb.co/W0vBk3T">Settings panel preview</a>
 
 ### <u>Installation</u>
+
 Go to <a href = "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js">this page</a>, hit CTRL + S, then save it in your BetterDiscord plug-ins folder. Then go to <span style = "color: #FF00FF;">Settings --> Plugins --> CodingDND --> Settings</span> to customise the plug-in.
 
 ## <u>Development Plan</u>
@@ -15,14 +16,17 @@ Go to <a href = "https://raw.githubusercontent.com/SMC242/CodingDND/stable/Codin
 ### Iteration 1
 
 Support a list of IDEs (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)
+<b>Done</b>
 
 ### Iteration 2
 
 Support custom process names so users can add other IDEs or even non-IDEs
+<b>Done</b>
 
 ### Iteration 3
 
 Allow different statuses from DND and online
+<b>Done</b>
 
 ### Iteration 4
 
