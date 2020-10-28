@@ -185,31 +185,35 @@ interface settings_obj {
   inactive_status: string;
 }
 
-const default_tracked_items = {
-  Atom: {
-    process_names: ["atom"],
-    is_tracked: false,
+const default_settings = {
+  tracked_items: {
+    Atom: {
+      process_names: ["atom"],
+      is_tracked: false,
+    },
+    Eclipse: {
+      process_names: ["eclipse"],
+      is_tracked: false,
+    },
+    "Intellij IDEA": {
+      process_names: ["idea", "idea64"],
+      is_tracked: false,
+    },
+    Pycharm: {
+      process_names: ["pycharm64", "charm"],
+      is_tracked: false,
+    },
+    "Visual Studio": {
+      process_names: ["devenv"],
+      is_tracked: false,
+    },
+    "Visual Studio Code": {
+      process_names: ["Code"],
+      is_tracked: false,
+    },
   },
-  Eclipse: {
-    process_names: ["eclipse"],
-    is_tracked: false,
-  },
-  "Intellij IDEA": {
-    process_names: ["idea", "idea64"],
-    is_tracked: false,
-  },
-  Pycharm: {
-    process_names: ["pycharm64", "charm"],
-    is_tracked: false,
-  },
-  "Visual Studio": {
-    process_names: ["devenv"],
-    is_tracked: false,
-  },
-  "Visual Studio Code": {
-    process_names: ["Code"],
-    is_tracked: false,
-  },
+  active_status: "dnd",
+  inactive_status: "online",
 };
 
 module.exports = (() => {
@@ -223,7 +227,7 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "0.5.1",
+      version: "0.5.2",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
@@ -244,6 +248,14 @@ module.exports = (() => {
         type: "added",
         items: [
           "There is now a menu in settings where you can select non-default processes to track.",
+        ],
+      },
+      {
+        title: "Please delete your settings file",
+        type: "fixed",
+        items: [
+          "I changed the format of the settings file.",
+          "You can delete it by going into your plugins folder and deleting `CodingDND.config.json`",
         ],
       },
     ],
@@ -332,11 +344,28 @@ module.exports = (() => {
               );
 
               // initialise the settings if this is the first run
-              this.settings = Bapi.loadData("CodingDND", "settings") ?? {
-                tracked_items: default_tracked_items,
-                active_status: "dnd",
-                inactive_status: "online",
-              };
+              const loaded_settings = Bapi.loadData("CodingDND", "settings");
+              switch (loaded_settings == true) {
+                // validate the settings format
+                // NOTE: this is only a surface check
+                case true:
+                  if (
+                    !Object.keys(default_settings)
+                      .map((key: string) => key in loaded_settings)
+                      .every((value: boolean) => value)
+                  ) {
+                    Bapi.showToast(
+                      "Settings format possibly invalid. Please delete `CodingDND.config.json` and reload.",
+                      { type: "warning" }
+                    );
+                  }
+                  this.settings = loaded_settings;
+                  break;
+                // no settings loaded
+                case false:
+                  this.settings = default_settings;
+                  break;
+              }
 
               // get the names of the currently tracked processes
               this.targets = Array.from(
