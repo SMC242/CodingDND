@@ -236,11 +236,11 @@ module.exports = (() => {
     },
     changelog: [
       {
-        title: "First release!",
+        title: "Please delete your settings file",
+        type: "fixed",
         items: [
-          "All of the planned IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
-          "The tracking loop should work.",
-          "Please tell me if you find any bugs.",
+          "I changed the format of the settings file.",
+          "You can delete it by going into your plugins folder and deleting `CodingDND.config.json`",
         ],
       },
       {
@@ -251,11 +251,11 @@ module.exports = (() => {
         ],
       },
       {
-        title: "Please delete your settings file",
-        type: "fixed",
+        title: "First release!",
         items: [
-          "I changed the format of the settings file.",
-          "You can delete it by going into your plugins folder and deleting `CodingDND.config.json`",
+          "All of the planned IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
+          "The tracking loop should work.",
+          "Please tell me if you find any bugs.",
         ],
       },
     ],
