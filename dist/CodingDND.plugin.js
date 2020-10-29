@@ -249,22 +249,20 @@ module.exports = (() => {
                         this.last_status = Bapi.findModuleByProps("getStatus").getStatus(Bapi.findModuleByProps("getToken").getId() // get the current user's ID
                         );
                         // initialise the settings if this is the first run
-                        const loaded_settings = Bapi.loadData("CodingDND", "settings");
-                        switch (loaded_settings == true) {
+                        const settings_from_config = Bapi.loadData("CodingDND", "settings");
+                        if (settings_from_config) {
+                            const loaded_settings = settings_from_config; // NOTE: TS wasn't inferring that it can't be null at this point so I added this type cast
                             // validate the settings format
                             // NOTE: this is only a surface check
-                            case true:
-                                if (!Object.keys(default_settings)
-                                    .map((key) => key in loaded_settings)
-                                    .every((value) => value)) {
-                                    Bapi.showToast("Settings format possibly invalid. Please delete `CodingDND.config.json` and reload.", { type: "warning" });
-                                }
-                                this.settings = loaded_settings;
-                                break;
-                            // no settings loaded
-                            case false:
-                                this.settings = default_settings;
-                                break;
+                            if (!Object.keys(default_settings)
+                                .map((key) => key in loaded_settings)
+                                .every((value) => value)) {
+                                Bapi.showToast("Settings format possibly invalid. Please delete `CodingDND.config.json` and reload.", { type: "warning" });
+                            }
+                            this.settings = loaded_settings;
+                        }
+                        else {
+                            this.settings = default_settings;
                         }
                         // get the names of the currently tracked processes
                         this.targets = Array.from(Object.entries(this.settings.tracked_items), // get the key: value pairs
