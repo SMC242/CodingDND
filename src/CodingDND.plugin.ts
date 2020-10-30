@@ -185,31 +185,35 @@ interface settings_obj {
   inactive_status: string;
 }
 
-const default_tracked_items = {
-  Atom: {
-    process_names: ["atom"],
-    is_tracked: false,
+const default_settings = {
+  tracked_items: {
+    Atom: {
+      process_names: ["atom"],
+      is_tracked: false,
+    },
+    Eclipse: {
+      process_names: ["eclipse"],
+      is_tracked: false,
+    },
+    "Intellij IDEA": {
+      process_names: ["idea", "idea64"],
+      is_tracked: false,
+    },
+    Pycharm: {
+      process_names: ["pycharm64", "charm"],
+      is_tracked: false,
+    },
+    "Visual Studio": {
+      process_names: ["devenv"],
+      is_tracked: false,
+    },
+    "Visual Studio Code": {
+      process_names: ["Code"],
+      is_tracked: false,
+    },
   },
-  Eclipse: {
-    process_names: ["eclipse"],
-    is_tracked: false,
-  },
-  "Intellij IDEA": {
-    process_names: ["idea", "idea64"],
-    is_tracked: false,
-  },
-  Pycharm: {
-    process_names: ["pycharm64", "charm"],
-    is_tracked: false,
-  },
-  "Visual Studio": {
-    process_names: ["devenv"],
-    is_tracked: false,
-  },
-  "Visual Studio Code": {
-    process_names: ["Code"],
-    is_tracked: false,
-  },
+  active_status: "dnd",
+  inactive_status: "online",
 };
 
 module.exports = (() => {
@@ -223,7 +227,7 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "0.5.0",
+      version: "0.6.0",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
@@ -232,18 +236,44 @@ module.exports = (() => {
     },
     changelog: [
       {
-        title: "First release!",
+        title: "Settings bugs fixes",
+        type: "fixed",
         items: [
-          "All of the planned IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
-          "The tracking loop should work.",
-          "Please tell me if you find any bugs.",
+          "Settings were being incorrectly loaded previously",
+          "I've added some settings format verification",
+          "Custom process settings were sometimes not being saved.",
         ],
       },
+      {
+        title: "Please delete your settings file",
+        type: "fixed",
+        items: [
+          "I changed the format of the settings file.",
+          "You can delete it by going into your plugins folder and deleting `CodingDND.config.json`",
+        ],
+      },
+      {
+        title: "New support server",
+        type: "added",
+        items: [
+          "There is now a dedicated server for all my projects. Come check it out :)",
+          "https://discord.gg/d65ujkS",
+        ],
+      },
+
       {
         title: "Custom Process Update",
         type: "added",
         items: [
           "There is now a menu in settings where you can select non-default processes to track.",
+        ],
+      },
+      {
+        title: "First release!",
+        items: [
+          "All of the planned IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
+          "The tracking loop should work.",
+          "Please tell me if you find any bugs.",
         ],
       },
     ],
@@ -332,11 +362,29 @@ module.exports = (() => {
               );
 
               // initialise the settings if this is the first run
-              this.settings = Bapi.loadData("CodingDND", "settings") ?? {
-                tracked_items: default_tracked_items,
-                active_status: "dnd",
-                inactive_status: "online",
-              };
+              const settings_from_config: unknown = Bapi.loadData(
+                "CodingDND",
+                "settings"
+              );
+
+              if (settings_from_config) {
+                const loaded_settings = <settings_obj>settings_from_config; // NOTE: TS wasn't inferring that it can't be null at this point so I added this type cast
+                // validate the settings format
+                // NOTE: this is only a surface check
+                if (
+                  !Object.keys(default_settings)
+                    .map((key: string) => key in loaded_settings)
+                    .every((value: boolean) => value)
+                ) {
+                  Bapi.showToast(
+                    "Settings format possibly invalid. Please delete `CodingDND.config.json` and reload.",
+                    { type: "warning" }
+                  );
+                }
+                this.settings = loaded_settings;
+              } else {
+                this.settings = default_settings;
+              }
 
               // get the names of the currently tracked processes
               this.targets = Array.from(

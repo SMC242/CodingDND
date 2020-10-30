@@ -126,31 +126,35 @@ function merge_sort(unsorted) {
     // Recurse until finished
     return merge(merge_sort(left), merge_sort(right));
 }
-const default_tracked_items = {
-    Atom: {
-        process_names: ["atom"],
-        is_tracked: false,
+const default_settings = {
+    tracked_items: {
+        Atom: {
+            process_names: ["atom"],
+            is_tracked: false,
+        },
+        Eclipse: {
+            process_names: ["eclipse"],
+            is_tracked: false,
+        },
+        "Intellij IDEA": {
+            process_names: ["idea", "idea64"],
+            is_tracked: false,
+        },
+        Pycharm: {
+            process_names: ["pycharm64", "charm"],
+            is_tracked: false,
+        },
+        "Visual Studio": {
+            process_names: ["devenv"],
+            is_tracked: false,
+        },
+        "Visual Studio Code": {
+            process_names: ["Code"],
+            is_tracked: false,
+        },
     },
-    Eclipse: {
-        process_names: ["eclipse"],
-        is_tracked: false,
-    },
-    "Intellij IDEA": {
-        process_names: ["idea", "idea64"],
-        is_tracked: false,
-    },
-    Pycharm: {
-        process_names: ["pycharm64", "charm"],
-        is_tracked: false,
-    },
-    "Visual Studio": {
-        process_names: ["devenv"],
-        is_tracked: false,
-    },
-    "Visual Studio Code": {
-        process_names: ["Code"],
-        is_tracked: false,
-    },
+    active_status: "dnd",
+    inactive_status: "online",
 };
 module.exports = (() => {
     const config = {
@@ -163,18 +167,35 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "0.5.0",
+            version: "0.6.0",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
         },
         changelog: [
             {
-                title: "First release!",
+                title: "Settings bugs fixes",
+                type: "fixed",
                 items: [
-                    "All of the planned IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
-                    "The tracking loop should work.",
-                    "Please tell me if you find any bugs.",
+                    "Settings were being incorrectly loaded previously",
+                    "I've added some settings format verification",
+                    "Custom process settings were sometimes not being saved.",
+                ],
+            },
+            {
+                title: "Please delete your settings file",
+                type: "fixed",
+                items: [
+                    "I changed the format of the settings file.",
+                    "You can delete it by going into your plugins folder and deleting `CodingDND.config.json`",
+                ],
+            },
+            {
+                title: "New support server",
+                type: "added",
+                items: [
+                    "There is now a dedicated server for all my projects. Come check it out :)",
+                    "https://discord.gg/d65ujkS",
                 ],
             },
             {
@@ -182,6 +203,14 @@ module.exports = (() => {
                 type: "added",
                 items: [
                     "There is now a menu in settings where you can select non-default processes to track.",
+                ],
+            },
+            {
+                title: "First release!",
+                items: [
+                    "All of the planned IDEs are supported (Atom, VSCode, IntelliJ IDEA, Eclipse, Visual Studio, Pycharm)",
+                    "The tracking loop should work.",
+                    "Please tell me if you find any bugs.",
                 ],
             },
         ],
@@ -226,7 +255,6 @@ module.exports = (() => {
                 const { Logger, Patcher, Settings } = Library;
                 return class CodingDND extends Plugin {
                     constructor() {
-                        var _a;
                         super();
                         this.running = [];
                         this.targets = [];
@@ -238,11 +266,21 @@ module.exports = (() => {
                         this.last_status = Bapi.findModuleByProps("getStatus").getStatus(Bapi.findModuleByProps("getToken").getId() // get the current user's ID
                         );
                         // initialise the settings if this is the first run
-                        this.settings = (_a = Bapi.loadData("CodingDND", "settings")) !== null && _a !== void 0 ? _a : {
-                            tracked_items: default_tracked_items,
-                            active_status: "dnd",
-                            inactive_status: "online",
-                        };
+                        const settings_from_config = Bapi.loadData("CodingDND", "settings");
+                        if (settings_from_config) {
+                            const loaded_settings = settings_from_config; // NOTE: TS wasn't inferring that it can't be null at this point so I added this type cast
+                            // validate the settings format
+                            // NOTE: this is only a surface check
+                            if (!Object.keys(default_settings)
+                                .map((key) => key in loaded_settings)
+                                .every((value) => value)) {
+                                Bapi.showToast("Settings format possibly invalid. Please delete `CodingDND.config.json` and reload.", { type: "warning" });
+                            }
+                            this.settings = loaded_settings;
+                        }
+                        else {
+                            this.settings = default_settings;
+                        }
                         // get the names of the currently tracked processes
                         this.targets = Array.from(Object.entries(this.settings.tracked_items), // get the key: value pairs
                         ([alias, item]) => {
