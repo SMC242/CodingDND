@@ -167,18 +167,35 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "0.5.2",
+            version: "0.6.0",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
         },
         changelog: [
             {
+                title: "Settings bugs fixes",
+                type: "fixed",
+                items: [
+                    "Settings were being incorrectly loaded previously",
+                    "I've added some settings format verification",
+                    "Custom process settings were sometimes not being saved.",
+                ],
+            },
+            {
                 title: "Please delete your settings file",
                 type: "fixed",
                 items: [
                     "I changed the format of the settings file.",
                     "You can delete it by going into your plugins folder and deleting `CodingDND.config.json`",
+                ],
+            },
+            {
+                title: "New support server",
+                type: "added",
+                items: [
+                    "There is now a dedicated server for all my projects. Come check it out :)",
+                    "https://discord.gg/d65ujkS",
                 ],
             },
             {
