@@ -165,23 +165,56 @@ function merge_sort(unsorted: Array<string>): Array<string> {
 
 /**
  * An element of `settings_obj.tracked_items` that holds the information for an item.
- * @process_names the possible names of the executable. This should contain names for all OSes and 64/32 bit versions.
- * NOTE: do not include file extensions for compatibility with Linux
- * @is_tracked whether the item is currently being searched for in the process list
  */
 interface tracked_item {
+  /**
+   * @process_names the possible names of the executable. This should contain names for all OSes and 64/32 bit versions.
+   * NOTE: do not include file extensions for compatibility with Linux
+   */
   process_names: process_list_type;
+  /**
+   * @is_tracked whether the item is currently being searched for in the process list
+   */
   is_tracked: boolean;
 }
 
 /**
- * @tracked_items the alias of the target and information about its tracking status and potential names.
- * @active_status The status to set when one of the targets is running. Must be one of: ["online", "idle", "invisible", "dnd"]
- * @inactive_status The status to set when one of the targets is not running. Must be one of: ["online", "idle", "invisible", "dnd"]
+ * A channel that could be muted when targets are running
+ */
+interface mute_channel {
+  /**
+   * Whether the channel is meant to be muted when targets are running
+   */
+  mute: boolean;
+  /**
+   * The id for the targted channel
+   */
+  channel_id: string;
+  /**
+   * The id for the guild containing the targeted channel
+   */
+  guild_id: string;
+}
+
+/**
+ * The internal settings object
  */
 interface settings_obj {
+  /**
+   * The alias of the target and information about its tracking status and potential names.
+   */
   tracked_items: { [alias: string]: tracked_item };
+  /**
+   * The channels to mute
+   */
+  mute_targets: { [alias: string]: mute_channel };
+  /**
+   * The alias of the target and information about its tracking status and potential names.
+   */
   active_status: string;
+  /**
+   * The status to set when one of the targets is not running. Must be one of: ["online", "idle", "invisible", "dnd"]
+   */
   inactive_status: string;
 }
 
