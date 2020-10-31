@@ -218,7 +218,7 @@ interface settings_obj {
   inactive_status: string;
 }
 
-const default_settings = {
+const default_settings: settings_obj = {
   tracked_items: {
     Atom: {
       process_names: ["atom"],
@@ -245,6 +245,7 @@ const default_settings = {
       is_tracked: false,
     },
   },
+  mute_targets: {},
   active_status: "dnd",
   inactive_status: "online",
 };
