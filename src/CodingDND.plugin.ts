@@ -352,6 +352,8 @@ module.exports = (() => {
             last_status: string; // The last status that was set. Used to avoid unnecessary API calls. Must be in ['online', 'invisible', 'idle', 'dnd']
             get_all_processes: process_parser; // The function that gets the process list. This is defined at runtime
             settings_panel: HTMLElement | undefined; // the Settings.SettingsPanel to be updated after some variables load
+            status_updater: any; // the webpack module used to update the status
+            muter: any; // the webpack module used to mute channels
 
             constructor() {
               super();
@@ -366,6 +368,14 @@ module.exports = (() => {
               // initialise last_status to the current status
               this.last_status = Bapi.findModuleByProps("getStatus").getStatus(
                 Bapi.findModuleByProps("getToken").getId() // get the current user's ID
+              );
+
+              // get the relevant webpack modules
+              this.status_updater = Bapi.findModuleByProps(
+                "updateLocalSettings"
+              );
+              this.muter = Bapi.findModuleByProps(
+                "updateChannelOverrideSettings"
               );
 
               // initialise the settings if this is the first run
@@ -439,10 +449,7 @@ module.exports = (() => {
              * @param set_to The status to set. This may be dnd, online, invisible, or idle
              */
             async set_status(set_to: string): Promise<void> {
-              let UserSettingsUpdater = Bapi.findModuleByProps(
-                "updateLocalSettings"
-              );
-              UserSettingsUpdater.updateLocalSettings({
+              this.status_updater.updateLocalSettings({
                 status: set_to,
               });
             }
@@ -513,6 +520,16 @@ module.exports = (() => {
                 // sleep for 30 seconds
                 await sleep();
               }
+            }
+
+            /**
+             * Mute or unmute a channel.
+             * @param guild_id The guild that contains the channel
+             * @param channel_id The channel to mute
+             */
+            toggle_mute_channel(guild_id: string, channel_id: string) {
+              const is_muted: boolean = true; // TODO: get the channel --> get muted status
+              this.muter.updateChannelOverrideSettings({ muted: !is_muted });
             }
 
             getSettingsPanel() {
