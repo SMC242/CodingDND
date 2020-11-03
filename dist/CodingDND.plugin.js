@@ -153,6 +153,7 @@ const default_settings = {
             is_tracked: false,
         },
     },
+    mute_targets: {},
     active_status: "dnd",
     inactive_status: "online",
 };
@@ -167,7 +168,7 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "0.6.0",
+            version: "0.61.0",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
@@ -272,6 +273,9 @@ module.exports = (() => {
                         // initialise last_status to the current status
                         this.last_status = Bapi.findModuleByProps("getStatus").getStatus(Bapi.findModuleByProps("getToken").getId() // get the current user's ID
                         );
+                        // get the relevant webpack modules
+                        this.status_updater = Bapi.findModuleByProps("updateLocalSettings");
+                        this.muter = Bapi.findModuleByProps("updateChannelOverrideSettings");
                         // initialise the settings if this is the first run
                         const settings_from_config = Bapi.loadData("CodingDND", "settings");
                         if (settings_from_config) {
@@ -328,8 +332,7 @@ module.exports = (() => {
                      * @param set_to The status to set. This may be dnd, online, invisible, or idle
                      */
                     async set_status(set_to) {
-                        let UserSettingsUpdater = Bapi.findModuleByProps("updateLocalSettings");
-                        UserSettingsUpdater.updateLocalSettings({
+                        this.status_updater.updateLocalSettings({
                             status: set_to,
                         });
                     }
@@ -384,6 +387,15 @@ module.exports = (() => {
                             // sleep for 30 seconds
                             await sleep();
                         }
+                    }
+                    /**
+                     * Mute or unmute a channel.
+                     * @param guild_id The guild that contains the channel
+                     * @param channel_id The channel to mute
+                     */
+                    toggle_mute_channel(guild_id, channel_id) {
+                        const is_muted = true; // TODO: get the channel --> get muted status
+                        this.muter.updateChannelOverrideSettings({ muted: !is_muted });
                     }
                     getSettingsPanel() {
                         // prepare a list of possible statuses for the dropdown
