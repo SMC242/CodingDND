@@ -260,7 +260,7 @@ module.exports = (() => {
         }
         : (([Plugin, Api]) => {
             const CodingDND = (Plugin, Library) => {
-                const { Logger, Patcher, Settings } = Library;
+                const { Logger, Patcher, Settings, WebpackModules, DiscordModules: { React }, } = Library;
                 return class CodingDND extends Plugin {
                     constructor() {
                         super();
@@ -315,9 +315,13 @@ module.exports = (() => {
                         Patcher.before(Logger, "log", (t, a) => {
                             a[0] = "Patched Message: " + a[0];
                         });
+                        // start the loop
                         this.run_loop = true; // ensure that the loop restarts in the case of a reload
                         this.loop();
                         Logger.log("Tracking loop started");
+                        // patch the menus
+                        this.patch_channel_ctx_menu();
+                        Logger.log("Injected custom channel context menus");
                     }
                     onStop() {
                         Logger.log("Stopped");
@@ -396,6 +400,46 @@ module.exports = (() => {
                     toggle_mute_channel(guild_id, channel_id) {
                         const is_muted = true; // TODO: get the channel --> get muted status
                         this.muter.updateChannelOverrideSettings({ muted: !is_muted });
+                    }
+                    /**
+                     * Register a new mute_channel to the settings object
+                     * @param guild_id The snowflake ID of the guild containing the channel
+                     * @param channel_id The channel to register
+                     * @param channel_name The name of the channel
+                     */
+                    add_mute_channel(guild_id, channel_id, channel_name) {
+                        const to_add = {
+                            guild_id,
+                            channel_id,
+                            mute: false,
+                        };
+                        this.settings.mute_targets[channel_name] = to_add;
+                        this.save_settings();
+                    }
+                    /**
+                     * Add the button for adding mute_channels to the channel context menus
+                     */
+                    patch_channel_ctx_menu() {
+                        // BdApi.findModuleByDisplayName returns a module without a render method --> can't be patched
+                        // the first 2 results seem to be deprecated versions of this module
+                        const ChannelContextMenu = WebpackModules.findAll((m) => m.default &&
+                            m.default.displayName == "ChannelListTextChannelContextMenu")[2];
+                        const { MenuItem, MenuGroup } = WebpackModules.find((m) => m.MenuRadioItem && !m.default);
+                        Patcher.after(ChannelContextMenu, "default", (_, [props], ret) => {
+                            if (!Array.isArray(ret.props.children))
+                                return ret; // something weird happened to the DOM so ignore it
+                            const guild_id = props.guild.id;
+                            const channel_id = props.channel.id;
+                            const channel_name = props.channel.name;
+                            ret.props.children.push(React.createElement(MenuGroup, {}, React.createElement(MenuItem, {
+                                id: "",
+                                label: "Add to muted channels menu (CodingDND)",
+                                disabled: false,
+                                action: () => {
+                                    this.add_mute_channel(guild_id, channel_id, channel_name);
+                                },
+                            })));
+                        });
                     }
                     getSettingsPanel() {
                         // prepare a list of possible statuses for the dropdown
