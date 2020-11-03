@@ -276,6 +276,7 @@ module.exports = (() => {
                         // get the relevant webpack modules
                         this.status_updater = Bapi.findModuleByProps("updateLocalSettings");
                         this.muter = Bapi.findModuleByProps("updateChannelOverrideSettings");
+                        this.channel_getter = Bapi.findModuleByProps("getChannels");
                         // initialise the settings if this is the first run
                         const settings_from_config = Bapi.loadData("CodingDND", "settings");
                         if (settings_from_config) {
@@ -330,6 +331,19 @@ module.exports = (() => {
                     }
                     load() {
                         super.load();
+                    }
+                    get_channel(channel_id) {
+                        const channel = this.channel_getter.getChannel(channel_id);
+                        // if failed to find channel, delete the channel from the settings
+                        if (!channel) {
+                            Bapi.showToast(`Failed to find channel. Channel id ${channel_id}`);
+                            Object.entries(this.settings.mute_targets).forEach(([name, target]) => {
+                                if (target.channel_id === channel_id)
+                                    delete this.settings.mute_targets[name];
+                            });
+                            return null;
+                        }
+                        return channel;
                     }
                     /**
                      * Set the user's status
@@ -394,11 +408,13 @@ module.exports = (() => {
                     }
                     /**
                      * Mute or unmute a channel.
-                     * @param guild_id The guild that contains the channel
                      * @param channel_id The channel to mute
                      */
-                    toggle_mute_channel(guild_id, channel_id) {
-                        const is_muted = true; // TODO: get the channel --> get muted status
+                    toggle_mute_channel(channel_id) {
+                        const channel = this.get_channel(channel_id);
+                        if (!channel)
+                            return;
+                        // TODO: get is_muted
                         this.muter.updateChannelOverrideSettings({ muted: !is_muted });
                     }
                     /**

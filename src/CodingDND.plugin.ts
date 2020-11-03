@@ -394,6 +394,7 @@ module.exports = (() => {
             settings_panel: HTMLElement | undefined; // the Settings.SettingsPanel to be updated after some variables load
             status_updater: any; // the webpack module used to update the status
             muter: any; // the webpack module used to mute channels
+            channel_getter: any; // the webpack module used for finding channel objects
 
             constructor() {
               super();
@@ -417,6 +418,7 @@ module.exports = (() => {
               this.muter = Bapi.findModuleByProps(
                 "updateChannelOverrideSettings"
               );
+              this.channel_getter = Bapi.findModuleByProps("getChannels");
 
               // initialise the settings if this is the first run
               const settings_from_config: unknown = Bapi.loadData(
@@ -490,11 +492,35 @@ module.exports = (() => {
               super.load();
             }
 
+            get_channel(channel_id: string): object | null {
+              const channel = this.channel_getter.getChannel(channel_id);
+
+              // if failed to find channel, delete the channel from the settings
+              if (!channel) {
+                Bapi.showToast(
+                  `Failed to find channel. Channel id ${channel_id}`
+                );
+                Object.entries(this.settings.mute_targets).forEach(
+                  ([name, target]) => {
+                    if (target.channel_id === channel_id)
+                      delete this.settings.mute_targets[name];
+                  }
+                );
+                return null;
+              }
+              return channel;
+            }
+
             /**
              * Set the user's status
              * @param set_to The status to set. This may be dnd, online, invisible, or idle
              */
             async set_status(set_to: string): Promise<void> {
+              if (!["online", "dnd", "idle", "invisible"].includes(set_to)) {
+                throw Error(
+                  'Invalid status name. It must be "online", "dnd", "idle", or "invisible"'
+                );
+              }
               this.status_updater.updateLocalSettings({
                 status: set_to,
               });
@@ -570,11 +596,12 @@ module.exports = (() => {
 
             /**
              * Mute or unmute a channel.
-             * @param guild_id The guild that contains the channel
              * @param channel_id The channel to mute
              */
-            toggle_mute_channel(guild_id: string, channel_id: string) {
-              const is_muted: boolean = true; // TODO: get the channel --> get muted status
+            toggle_mute_channel(channel_id: string) {
+              const channel = this.get_channel(channel_id);
+              if (!channel) return;
+              // TODO: get is_muted
               this.muter.updateChannelOverrideSettings({ muted: !is_muted });
             }
 
