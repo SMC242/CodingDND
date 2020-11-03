@@ -350,6 +350,9 @@ module.exports = (() => {
                      * @param set_to The status to set. This may be dnd, online, invisible, or idle
                      */
                     async set_status(set_to) {
+                        if (!["online", "dnd", "idle", "invisible"].includes(set_to)) {
+                            throw Error('Invalid status name. It must be "online", "dnd", "idle", or "invisible"');
+                        }
                         this.status_updater.updateLocalSettings({
                             status: set_to,
                         });
