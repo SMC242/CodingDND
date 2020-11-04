@@ -715,6 +715,60 @@ module.exports = (() => {
             }
 
             getSettingsPanel() {
+              // create and save the settings panel
+              this.settings_panel = Settings.SettingPanel.build(
+                this.save_settings.bind(this),
+                this.target_process_menu,
+                this.status_menu,
+                this.custom_processes_menu
+              );
+              return this.settings_panel;
+            }
+
+            async save_settings(): Promise<void> {
+              Bapi.saveData("CodingDND", "settings", this.settings);
+            }
+
+            /**
+             * Create a set of switches to take in whether to check for their status
+             * @returns Settings.Switches that correspond to a tracked item
+             */
+            button_set(): Array<object> {
+              return Object.keys(this.settings.tracked_items).map((name) => {
+                return new Settings.Switch(
+                  name,
+                  "Set 'Do Not Disturb' when this process runs",
+                  this.settings.tracked_items[name].is_tracked,
+                  (new_val: boolean) => {
+                    // prevent context loss
+                    (new_val ? this.track.bind(this) : this.untrack.bind(this))(
+                      name
+                    );
+                  }
+                );
+              });
+            }
+
+            /**
+             * Get padding for increasing the height of menus
+             */
+            get menu_padding(): Array<HTMLElement> {
+              let br_padding: Array<HTMLElement> = [];
+              for (let i = 0; i < 10; i++) {
+                br_padding = br_padding.concat(document.createElement("br"));
+              }
+              return br_padding;
+            }
+
+            /** this group is for selecting `targets` */
+            get target_process_menu(): object {
+              return new Settings.SettingGroup("Target Processes", {
+                callback: this.save_settings.bind(this),
+              }).append(...this.button_set());
+            }
+
+            /** This group is for selecting which statuses are set when running/not running targets */
+            get status_menu(): object {
               // prepare a list of possible statuses for the dropdown
               const statuses: Array<object> = [
                 { label: "Online", value: "online" },
@@ -723,6 +777,31 @@ module.exports = (() => {
                 { label: "Do Not Disturb", value: "dnd" },
               ];
 
+              return new Settings.SettingGroup("Statuses", {
+                callback: this.save_settings.bind(this),
+              }).append(
+                new Settings.Dropdown(
+                  "Active status",
+                  "The status to set when one of the targets is running",
+                  this.settings.active_status,
+                  statuses,
+                  (new_status: string) =>
+                    (this.settings.active_status = new_status)
+                ),
+                new Settings.Dropdown(
+                  "Inactive status",
+                  "The status to set when none of the targets are running",
+                  this.settings.inactive_status,
+                  statuses,
+                  (new_status: string) =>
+                    (this.settings.inactive_status = new_status)
+                ),
+                ...this.menu_padding // NOTE: these are needed because the bottommost options in dropdowns were getting cut off the screen
+              );
+            }
+
+            /** This group is for tracking non-default processes */
+            get custom_processes_menu(): object {
               // Put a temporary value in the custom targets Settings.SettingGroup until `get_all_processes` finishes
               let processes_not_loaded_warning: HTMLElement = document.createElement(
                 "p"
@@ -734,12 +813,6 @@ module.exports = (() => {
                   id: "processes_not_loaded_warning",
                 }
               );
-
-              // these are needed because the bottommost options in dropdowns were getting cut off the screen
-              let br_padding: Array<HTMLElement> = [];
-              for (let i = 0; i < 10; i++) {
-                br_padding = br_padding.concat(document.createElement("br"));
-              }
 
               //  populate the list of processes of the dropdown whenever it finishes
               this.get_all_processes().then(
@@ -776,75 +849,15 @@ module.exports = (() => {
                       { searchable: true }
                     ).getElement()
                   );
-                  br_padding.map((element: HTMLElement) =>
+                  this.menu_padding.map((element: HTMLElement) =>
                     setting_group.appendChild(element)
                   ); // add padding
                   warning.remove(); // clean up the warning
                 }
               );
-
-              // create and save the settings panel
-              this.settings_panel = Settings.SettingPanel.build(
-                this.save_settings.bind(this),
-
-                // this group is for selecting `targets`
-                new Settings.SettingGroup("Target Processes", {
-                  callback: this.save_settings.bind(this),
-                }).append(...this.button_set()),
-
-                // this group is for selecting which statuses are set when running/not running targets
-                new Settings.SettingGroup("Statuses", {
-                  callback: this.save_settings.bind(this),
-                }).append(
-                  new Settings.Dropdown(
-                    "Active status",
-                    "The status to set when one of the targets is running",
-                    this.settings.active_status,
-                    statuses,
-                    (new_status: string) =>
-                      (this.settings.active_status = new_status)
-                  ),
-                  new Settings.Dropdown(
-                    "Inactive status",
-                    "The status to set when none of the targets are running",
-                    this.settings.inactive_status,
-                    statuses,
-                    (new_status: string) =>
-                      (this.settings.inactive_status = new_status)
-                  ),
-                  ...br_padding
-                ),
-
-                // this group is for tracking non-default processes
-                new Settings.SettingGroup("Custom Targets").append(
-                  processes_not_loaded_warning
-                )
+              return new Settings.SettingGroup("Custom Targets").append(
+                processes_not_loaded_warning
               );
-              return this.settings_panel;
-            }
-
-            async save_settings(): Promise<void> {
-              Bapi.saveData("CodingDND", "settings", this.settings);
-            }
-
-            /**
-             * Create a set of switches to take in whether to check for their status
-             * @returns Settings.Switches that correspond to a tracked item
-             */
-            button_set(): Array<object> {
-              return Object.keys(this.settings.tracked_items).map((name) => {
-                return new Settings.Switch(
-                  name,
-                  "Set 'Do Not Disturb' when this process runs",
-                  this.settings.tracked_items[name].is_tracked,
-                  (new_val: boolean) => {
-                    // prevent context loss
-                    (new_val ? this.track.bind(this) : this.untrack.bind(this))(
-                      name
-                    );
-                  }
-                );
-              });
             }
 
             /**
