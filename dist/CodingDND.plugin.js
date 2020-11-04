@@ -508,12 +508,13 @@ module.exports = (() => {
                      * @param setting_section_name The part of the settings to create Switches for (E.G tracked_items)
                      * @param description The description to give to each switch
                      * @param default_value_name The name of the member of `setting_section_name` that will be the default value of the switches
-                     * @param on_change The callback for when the button is pressed
+                     * @param on_change The callback for when the button is pressed.
+                     * NOTE: This is needed for cases where the callback needs access to `name`.
                      * @returns Settings.Switches
                      */
                     switch_factory(setting_section_name, description, default_value_name, on_change) {
                         return Object.keys(this.settings[setting_section_name]).map((name) => {
-                            return new Settings.Switch(name, description, this.settings[setting_section_name][default_value_name], on_change);
+                            return new Settings.Switch(name, description, this.settings[setting_section_name][default_value_name], (new_value) => on_change(name, new_value));
                         });
                     }
                     /**
@@ -531,7 +532,7 @@ module.exports = (() => {
                         const target_section = "tracked_items";
                         const description = "Set 'Do Not Disturb' when this process runs";
                         const default_value_name = "is_tracked";
-                        const callback = (new_val) => {
+                        const callback = (name, new_val) => {
                             // prevent context loss
                             (new_val ? this.track.bind(this) : this.untrack.bind(this))(name);
                         };
