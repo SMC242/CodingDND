@@ -504,15 +504,16 @@ module.exports = (() => {
                         Bapi.saveData("CodingDND", "settings", this.settings);
                     }
                     /**
-                     * Create a set of switches to take in whether to check for their status
-                     * @returns Settings.Switches that correspond to a tracked item
+                     * Factory a set of switches
+                     * @param setting_section_name The part of the settings to create Switches for (E.G tracked_items)
+                     * @param description The description to give to each switch
+                     * @param default_value_name The name of the member of `setting_section_name` that will be the default value of the switches
+                     * @param on_change The callback for when the button is pressed
+                     * @returns Settings.Switches
                      */
-                    button_set() {
-                        return Object.keys(this.settings.tracked_items).map((name) => {
-                            return new Settings.Switch(name, "Set 'Do Not Disturb' when this process runs", this.settings.tracked_items[name].is_tracked, (new_val) => {
-                                // prevent context loss
-                                (new_val ? this.track.bind(this) : this.untrack.bind(this))(name);
-                            });
+                    switch_factory(setting_section_name, description, default_value_name, on_change) {
+                        return Object.keys(this.settings[setting_section_name]).map((name) => {
+                            return new Settings.Switch(name, description, this.settings[setting_section_name][default_value_name], on_change);
                         });
                     }
                     /**
@@ -527,9 +528,16 @@ module.exports = (() => {
                     }
                     /** this group is for selecting `targets` */
                     get target_process_menu() {
+                        const target_section = "tracked_items";
+                        const description = "Set 'Do Not Disturb' when this process runs";
+                        const default_value_name = "is_tracked";
+                        const callback = (new_val) => {
+                            // prevent context loss
+                            (new_val ? this.track.bind(this) : this.untrack.bind(this))(name);
+                        };
                         return new Settings.SettingGroup("Target Processes", {
                             callback: this.save_settings.bind(this),
-                        }).append(...this.button_set());
+                        }).append(...this.switch_factory(target_section, description, default_value_name, callback));
                     }
                     /** This group is for selecting which statuses are set when running/not running targets */
                     get status_menu() {
