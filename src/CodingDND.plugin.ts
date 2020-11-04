@@ -619,7 +619,9 @@ module.exports = (() => {
               if (!channel) return;
               const muted = this.is_muted(guild_id, channel_id);
               if (mute === muted) return; // don't change the mute status if it's already what the user wants
-              this.muter.updateChannelOverrideSettings({ muted: mute });
+              this.muter.updateChannelOverrideSettings(guild_id, channel_id, {
+                muted: mute,
+              });
             }
 
             /**
