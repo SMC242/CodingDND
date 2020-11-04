@@ -395,6 +395,7 @@ module.exports = (() => {
             status_updater: any; // the webpack module used to update the status
             muter: any; // the webpack module used to mute channels
             channel_getter: any; // the webpack module used for finding channel objects
+            mute_getter: any; // the webpack module for checking if a channel is muted
 
             constructor() {
               super();
@@ -418,6 +419,7 @@ module.exports = (() => {
               this.muter = Bapi.findModuleByProps(
                 "updateChannelOverrideSettings"
               );
+              this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
               this.channel_getter = Bapi.findModuleByProps("getChannels");
 
               // initialise the settings if this is the first run
@@ -492,25 +494,12 @@ module.exports = (() => {
               super.load();
             }
 
-            get_channel(channel_id: string): object | null {
-              const channel = this.channel_getter.getChannel(channel_id);
-
-              // if failed to find channel, delete the channel from the settings
-              if (!channel) {
-                Bapi.showToast(
-                  `Failed to find channel. Channel id ${channel_id}`
-                );
                 Object.entries(this.settings.mute_targets).forEach(
                   ([name, target]) => {
                     if (target.channel_id === channel_id)
                       delete this.settings.mute_targets[name];
                   }
                 );
-                return null;
-              }
-              return channel;
-            }
-
             /**
              * Set the user's status
              * @param set_to The status to set. This may be dnd, online, invisible, or idle
@@ -595,14 +584,43 @@ module.exports = (() => {
             }
 
             /**
-             * Mute or unmute a channel.
-             * @param channel_id The channel to mute
+             * Find a channel object
+             * @param channel_id The channel to find
              */
-            toggle_mute_channel(channel_id: string) {
+            get_channel(channel_id: string): object | null {
+              const channel = this.channel_getter.getChannel(channel_id);
+
+              // if failed to find channel, delete the channel from the settings
+              if (!channel) {
+                Bapi.showToast(
+                  `Failed to find channel. Channel id ${channel_id}`
+                );
+                return null;
+              }
+              return channel;
+            }
+
+            /**
+             * Get whether a channel is muted
+             * @param guild_id The guild containing the channel
+             * @param channel_id The channel to check
+             */
+            is_muted(guild_id: string, channel_id: string): boolean {
+              return this.mute_getter.isChannelMuted(guild_id, channel_id);
+            }
+
+            /**
+             * Mute or unmute a channel.
+             * @param guild_id The guild containing the channel
+             * @param channel_id The channel to mute/unmute
+             * @param mute Whether to mute or unmute the channel
+             */
+            set_mute(guild_id: string, channel_id: string, mute: boolean) {
               const channel = this.get_channel(channel_id);
               if (!channel) return;
-              // TODO: get is_muted
-              this.muter.updateChannelOverrideSettings({ muted: !is_muted });
+              const muted = this.is_muted(guild_id, channel_id);
+              if (mute === muted) return; // don't change the mute status if it's already what the user wants
+              this.muter.updateChannelOverrideSettings({ muted: mute });
             }
 
             /**
