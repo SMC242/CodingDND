@@ -168,14 +168,25 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "0.61.0",
+            version: "1.0.0",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
         },
         changelog: [
             {
-                tile: "Custom processes are now saved!",
+                title: "Mute channels update!",
+                type: "added",
+                items: [
+                    "You can now have channels muted when targets are running.",
+                    "To add a channel to the mute list, right click it and select `Add to muted channels menu`.",
+                    "Then go to the plug-in's settings --> Mute Channels to enable/disable muting of the channel.",
+                    "You will need to reset your settings file as there is a new format.",
+                    "Feel free to ping me/open an issue if you have ideas for further updates. I have added all the features I planned.",
+                ],
+            },
+            {
+                title: "Custom processes are now saved!",
                 type: "fixed",
                 items: [
                     "Custom process settings were sometimes not being saved.",
