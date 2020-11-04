@@ -265,7 +265,7 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "1.0.0",
+      version: "1.0.1",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
@@ -608,7 +608,8 @@ module.exports = (() => {
               // if failed to find channel, delete the channel from the settings
               if (!channel) {
                 Bapi.showToast(
-                  `Failed to find channel. Channel id ${channel_id}`
+                  `Failed to find channel. Channel id ${channel_id}`,
+                  { type: "error" }
                 );
                 this.remove_mute_channel(undefined, channel_id);
                 return null;
@@ -732,19 +733,26 @@ module.exports = (() => {
                   const guild_id = props.guild.id;
                   const channel_id = props.channel.id;
                   const channel_name = props.channel.name;
+                  const is_added = channel_name in this.settings.mute_targets;
                   ret.props.children.push(
                     React.createElement(
                       MenuGroup,
                       {},
                       React.createElement(MenuItem, {
                         id: "",
-                        label: "Add to muted channels menu (CodingDND)",
-                        disabled: false,
+                        label: is_added
+                          ? "Already in muted channels menu (CodingDND)"
+                          : "Add to muted channels menu (CodingDND)",
+                        disabled: is_added ? true : false,
                         action: () => {
                           this.add_mute_channel(
                             guild_id,
                             channel_id,
                             channel_name
+                          );
+                          Bapi.showToast(
+                            `Added ${channel_name} to mute channels menu`,
+                            { type: "success" }
                           );
                         },
                       })
