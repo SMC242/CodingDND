@@ -276,6 +276,7 @@ module.exports = (() => {
                         // get the relevant webpack modules
                         this.status_updater = Bapi.findModuleByProps("updateLocalSettings");
                         this.muter = Bapi.findModuleByProps("updateChannelOverrideSettings");
+                        this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
                         this.channel_getter = Bapi.findModuleByProps("getChannels");
                         // initialise the settings if this is the first run
                         const settings_from_config = Bapi.loadData("CodingDND", "settings");
@@ -331,19 +332,6 @@ module.exports = (() => {
                     }
                     load() {
                         super.load();
-                    }
-                    get_channel(channel_id) {
-                        const channel = this.channel_getter.getChannel(channel_id);
-                        // if failed to find channel, delete the channel from the settings
-                        if (!channel) {
-                            Bapi.showToast(`Failed to find channel. Channel id ${channel_id}`);
-                            Object.entries(this.settings.mute_targets).forEach(([name, target]) => {
-                                if (target.channel_id === channel_id)
-                                    delete this.settings.mute_targets[name];
-                            });
-                            return null;
-                        }
-                        return channel;
                     }
                     /**
                      * Set the user's status
@@ -410,15 +398,41 @@ module.exports = (() => {
                         }
                     }
                     /**
-                     * Mute or unmute a channel.
-                     * @param channel_id The channel to mute
+                     * Find a channel object
+                     * @param channel_id The channel to find
                      */
-                    toggle_mute_channel(channel_id) {
+                    get_channel(channel_id) {
+                        const channel = this.channel_getter.getChannel(channel_id);
+                        // if failed to find channel, delete the channel from the settings
+                        if (!channel) {
+                            Bapi.showToast(`Failed to find channel. Channel id ${channel_id}`);
+                            this.remove_mute_channel(undefined, channel_id);
+                            return null;
+                        }
+                        return channel;
+                    }
+                    /**
+                     * Get whether a channel is muted
+                     * @param guild_id The guild containing the channel
+                     * @param channel_id The channel to check
+                     */
+                    is_muted(guild_id, channel_id) {
+                        return this.mute_getter.isChannelMuted(guild_id, channel_id);
+                    }
+                    /**
+                     * Mute or unmute a channel.
+                     * @param guild_id The guild containing the channel
+                     * @param channel_id The channel to mute/unmute
+                     * @param mute Whether to mute or unmute the channel
+                     */
+                    set_mute(guild_id, channel_id, mute) {
                         const channel = this.get_channel(channel_id);
                         if (!channel)
                             return;
-                        // TODO: get is_muted
-                        this.muter.updateChannelOverrideSettings({ muted: !is_muted });
+                        const muted = this.is_muted(guild_id, channel_id);
+                        if (mute === muted)
+                            return; // don't change the mute status if it's already what the user wants
+                        this.muter.updateChannelOverrideSettings({ muted: mute });
                     }
                     /**
                      * Register a new mute_channel to the settings object
@@ -434,6 +448,27 @@ module.exports = (() => {
                         };
                         this.settings.mute_targets[channel_name] = to_add;
                         this.save_settings();
+                    }
+                    /**
+                     * Unregister a mute_channel from the settings object. Either an id or a name can be passed.
+                     * @param channel_name The name of the channel
+                     * @param channel_id The id of the channel
+                     */
+                    remove_mute_channel(channel_name, channel_id) {
+                        // raise an error if neither argument was passed
+                        if (!channel_name && !channel_id) {
+                            throw Error("Either channel_name or channel_id must be passed.");
+                        }
+                        if (channel_name) {
+                            delete this.settings.mute_targets[channel_name];
+                        }
+                        // search for the channel name
+                        else {
+                            Object.entries(this.settings.mute_targets).forEach(([name, target]) => {
+                                if (target.channel_id === channel_id)
+                                    delete this.settings.mute_targets[name];
+                            });
+                        }
                     }
                     /**
                      * Add the button for adding mute_channels to the channel context menus
