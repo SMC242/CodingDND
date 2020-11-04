@@ -163,29 +163,66 @@ function merge_sort(unsorted: Array<string>): Array<string> {
   return merge(merge_sort(left), merge_sort(right));
 }
 
+interface on_change_cb {
+  (name: string, new_value: boolean): void;
+}
+
 /**
  * An element of `settings_obj.tracked_items` that holds the information for an item.
- * @process_names the possible names of the executable. This should contain names for all OSes and 64/32 bit versions.
- * NOTE: do not include file extensions for compatibility with Linux
- * @is_tracked whether the item is currently being searched for in the process list
  */
 interface tracked_item {
+  /**
+   * @process_names the possible names of the executable. This should contain names for all OSes and 64/32 bit versions.
+   * NOTE: do not include file extensions for compatibility with Linux
+   */
   process_names: process_list_type;
+  /**
+   * @is_tracked whether the item is currently being searched for in the process list
+   */
   is_tracked: boolean;
 }
 
 /**
- * @tracked_items the alias of the target and information about its tracking status and potential names.
- * @active_status The status to set when one of the targets is running. Must be one of: ["online", "idle", "invisible", "dnd"]
- * @inactive_status The status to set when one of the targets is not running. Must be one of: ["online", "idle", "invisible", "dnd"]
+ * A channel that could be muted when targets are running
+ */
+interface mute_channel {
+  /**
+   * Whether the channel is meant to be muted when targets are running
+   */
+  mute: boolean;
+  /**
+   * The id for the targted channel
+   */
+  channel_id: string;
+  /**
+   * The id for the guild containing the targeted channel
+   */
+  guild_id: string;
+}
+
+/**
+ * The internal settings object
  */
 interface settings_obj {
+  /**
+   * The alias of the target and information about its tracking status and potential names.
+   */
   tracked_items: { [alias: string]: tracked_item };
+  /**
+   * The channels to mute
+   */
+  mute_targets: { [alias: string]: mute_channel };
+  /**
+   * The alias of the target and information about its tracking status and potential names.
+   */
   active_status: string;
+  /**
+   * The status to set when one of the targets is not running. Must be one of: ["online", "idle", "invisible", "dnd"]
+   */
   inactive_status: string;
 }
 
-const default_settings = {
+const default_settings: settings_obj = {
   tracked_items: {
     Atom: {
       process_names: ["atom"],
@@ -212,6 +249,7 @@ const default_settings = {
       is_tracked: false,
     },
   },
+  mute_targets: {},
   active_status: "dnd",
   inactive_status: "online",
 };
@@ -227,7 +265,7 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "0.6.0",
+      version: "0.61.0",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
@@ -342,7 +380,13 @@ module.exports = (() => {
       }
     : (([Plugin, Api]) => {
         const CodingDND = (Plugin, Library) => {
-          const { Logger, Patcher, Settings } = Library;
+          const {
+            Logger,
+            Patcher,
+            Settings,
+            WebpackModules,
+            DiscordModules: { React },
+          } = Library;
 
           return class CodingDND extends Plugin {
             targets: process_list_type; // the executable names to search for in the process list
@@ -352,6 +396,10 @@ module.exports = (() => {
             last_status: string; // The last status that was set. Used to avoid unnecessary API calls. Must be in ['online', 'invisible', 'idle', 'dnd']
             get_all_processes: process_parser; // The function that gets the process list. This is defined at runtime
             settings_panel: HTMLElement | undefined; // the Settings.SettingsPanel to be updated after some variables load
+            status_updater: any; // the webpack module used to update the status
+            muter: any; // the webpack module used to mute channels
+            channel_getter: any; // the webpack module used for finding channel objects
+            mute_getter: any; // the webpack module for checking if a channel is muted
 
             constructor() {
               super();
@@ -367,6 +415,16 @@ module.exports = (() => {
               this.last_status = Bapi.findModuleByProps("getStatus").getStatus(
                 Bapi.findModuleByProps("getToken").getId() // get the current user's ID
               );
+
+              // get the relevant webpack modules
+              this.status_updater = Bapi.findModuleByProps(
+                "updateLocalSettings"
+              );
+              this.muter = Bapi.findModuleByProps(
+                "updateChannelOverrideSettings"
+              );
+              this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
+              this.channel_getter = Bapi.findModuleByProps("getChannels");
 
               // initialise the settings if this is the first run
               const settings_from_config: unknown = Bapi.loadData(
@@ -420,9 +478,15 @@ module.exports = (() => {
               Patcher.before(Logger, "log", (t, a) => {
                 a[0] = "Patched Message: " + a[0];
               });
+
+              // start the loop
               this.run_loop = true; // ensure that the loop restarts in the case of a reload
               this.loop();
               Logger.log("Tracking loop started");
+
+              // patch the menus
+              this.patch_channel_ctx_menu();
+              Logger.log("Injected custom channel context menus");
             }
             onStop() {
               Logger.log("Stopped");
@@ -439,12 +503,29 @@ module.exports = (() => {
              * @param set_to The status to set. This may be dnd, online, invisible, or idle
              */
             async set_status(set_to: string): Promise<void> {
-              let UserSettingsUpdater = Bapi.findModuleByProps(
-                "updateLocalSettings"
-              );
-              UserSettingsUpdater.updateLocalSettings({
+              if (!["online", "dnd", "idle", "invisible"].includes(set_to)) {
+                throw Error(
+                  'Invalid status name. It must be "online", "dnd", "idle", or "invisible"'
+                );
+              }
+              this.status_updater.updateLocalSettings({
                 status: set_to,
               });
+            }
+
+            /** Change the user's status depending on whether targets are running */
+            change_status() {
+              // set the status if running, remove status if not running
+              const change_to = this.running.length // an empty list is truthy BRUH
+                ? this.settings.active_status
+                : this.settings.inactive_status;
+
+              // only make an API call if the status will change
+              if (change_to != this.last_status) {
+                Logger.log(`Setting new status: ${change_to}`);
+                this.set_status(change_to);
+                this.last_status = change_to;
+              }
             }
 
             /**
@@ -498,24 +579,252 @@ module.exports = (() => {
                   }`
                 );
 
-                // set the status if running, remove status if not running
-                const change_to = this.running.length // an empty list is truthy BRUH
-                  ? this.settings.active_status
-                  : this.settings.inactive_status;
-
-                // only make an API call if the status will change
-                if (change_to != this.last_status) {
-                  Logger.log(`Setting new status: ${change_to}`);
-                  this.set_status(change_to);
-                  this.last_status = change_to;
-                }
+                this.change_status();
+                this.update_channel_mutes();
 
                 // sleep for 30 seconds
                 await sleep();
               }
             }
 
+            /**
+             * Find a channel object
+             * @param channel_id The channel to find
+             */
+            get_channel(channel_id: string): object | null {
+              const channel = this.channel_getter.getChannel(channel_id);
+
+              // if failed to find channel, delete the channel from the settings
+              if (!channel) {
+                Bapi.showToast(
+                  `Failed to find channel. Channel id ${channel_id}`
+                );
+                this.remove_mute_channel(undefined, channel_id);
+                return null;
+              }
+              return channel;
+            }
+
+            /**
+             * Get whether a channel is muted
+             * @param guild_id The guild containing the channel
+             * @param channel_id The channel to check
+             */
+            is_muted(guild_id: string, channel_id: string): boolean {
+              return this.mute_getter.isChannelMuted(guild_id, channel_id);
+            }
+
+            /**
+             * Mute or unmute a channel.
+             * @param guild_id The guild containing the channel
+             * @param channel_id The channel to mute/unmute
+             * @param mute Whether to mute or unmute the channel
+             */
+            set_mute(guild_id: string, channel_id: string, mute: boolean) {
+              const channel = this.get_channel(channel_id);
+              if (!channel) return;
+              const muted = this.is_muted(guild_id, channel_id);
+              if (mute === muted) return; // don't change the mute status if it's already what the user wants
+              this.muter.updateChannelOverrideSettings(guild_id, channel_id, {
+                muted: mute,
+              });
+            }
+
+            /**
+             * Register a new mute_channel to the settings object
+             * @param guild_id The snowflake ID of the guild containing the channel
+             * @param channel_id The channel to register
+             * @param channel_name The name of the channel
+             */
+            add_mute_channel(
+              guild_id: string,
+              channel_id: string,
+              channel_name: string
+            ) {
+              const to_add: mute_channel = {
+                guild_id,
+                channel_id,
+                mute: false,
+              };
+              this.settings.mute_targets[channel_name] = to_add;
+              this.save_settings();
+            }
+
+            /**
+             * Unregister a mute_channel from the settings object. Either an id or a name can be passed.
+             * @param channel_name The name of the channel
+             * @param channel_id The id of the channel
+             */
+            remove_mute_channel(
+              channel_name: string | undefined,
+              channel_id: string | undefined
+            ) {
+              // raise an error if neither argument was passed
+              if (!channel_name && !channel_id) {
+                throw Error(
+                  "Either channel_name or channel_id must be passed."
+                );
+              }
+
+              if (channel_name) {
+                delete this.settings.mute_targets[channel_name];
+              }
+              // search for the channel name
+              else {
+                Object.entries(this.settings.mute_targets).forEach(
+                  ([name, target]) => {
+                    if (target.channel_id === channel_id)
+                      delete this.settings.mute_targets[name];
+                  }
+                );
+              }
+            }
+
+            /** Mute/unmute all targeted channels depending on whether targets are running */
+            update_channel_mutes() {
+              const mute = this.targets.length ? true : false;
+              let channels_muted: Array<string> = [];
+              Object.entries(this.settings.mute_targets).forEach(
+                ([name, target]: [string, mute_channel]) => {
+                  if (target.mute) {
+                    this.set_mute(target.guild_id, target.channel_id, mute);
+                    channels_muted.push(name);
+                  }
+                }
+              );
+              Logger.log(
+                `${mute ? "Muted" : "Unmuted"} ${channels_muted.join(", ")}`
+              );
+            }
+
+            /**
+             * Add the button for adding mute_channels to the channel context menus
+             */
+            patch_channel_ctx_menu() {
+              // BdApi.findModuleByDisplayName returns a module without a render method --> can't be patched
+              // the first 2 results seem to be deprecated versions of this module
+              const ChannelContextMenu = WebpackModules.findAll(
+                (m) =>
+                  m.default &&
+                  m.default.displayName == "ChannelListTextChannelContextMenu"
+              )[2];
+              const { MenuItem, MenuGroup } = WebpackModules.find(
+                (m) => m.MenuRadioItem && !m.default
+              );
+
+              Patcher.after(
+                ChannelContextMenu,
+                "default",
+                (_, [props], ret) => {
+                  if (!Array.isArray(ret.props.children)) return ret; // something weird happened to the DOM so ignore it
+
+                  const guild_id = props.guild.id;
+                  const channel_id = props.channel.id;
+                  const channel_name = props.channel.name;
+                  ret.props.children.push(
+                    React.createElement(
+                      MenuGroup,
+                      {},
+                      React.createElement(MenuItem, {
+                        id: "",
+                        label: "Add to muted channels menu (CodingDND)",
+                        disabled: false,
+                        action: () => {
+                          this.add_mute_channel(
+                            guild_id,
+                            channel_id,
+                            channel_name
+                          );
+                        },
+                      })
+                    )
+                  );
+                }
+              );
+            }
+
             getSettingsPanel() {
+              // create and save the settings panel
+              this.settings_panel = Settings.SettingPanel.build(
+                this.save_settings.bind(this),
+                this.target_process_menu,
+                this.status_menu,
+                this.custom_processes_menu,
+                this.mute_channels_menu
+              );
+              return this.settings_panel;
+            }
+
+            async save_settings(): Promise<void> {
+              Bapi.saveData("CodingDND", "settings", this.settings);
+            }
+
+            /**
+             * Factory a set of switches
+             * @param setting_section_name The part of the settings to create Switches for (E.G tracked_items)
+             * @param description The description to give to each switch
+             * @param default_value_name The name of the member of `setting_section_name` that will be the default value of the switches
+             * @param on_change The callback for when the button is pressed.
+             * NOTE: This is needed for cases where the callback needs access to `name`.
+             * @returns Settings.Switches
+             */
+            switch_factory(
+              setting_section_name: string,
+              description: string,
+              default_value_name: string,
+              on_change: on_change_cb
+            ): Array<object> {
+              return Object.keys(this.settings[setting_section_name]).map(
+                (name) => {
+                  return new Settings.Switch(
+                    name,
+                    description,
+                    this.settings[setting_section_name][name][
+                      default_value_name
+                    ],
+                    (new_value: boolean) => on_change(name, new_value)
+                  );
+                }
+              );
+            }
+
+            /**
+             * Get padding for increasing the height of menus
+             */
+            get menu_padding(): Array<HTMLElement> {
+              let br_padding: Array<HTMLElement> = [];
+              for (let i = 0; i < 10; i++) {
+                br_padding = br_padding.concat(document.createElement("br"));
+              }
+              return br_padding;
+            }
+
+            /** this group is for selecting `targets` */
+            get target_process_menu(): object {
+              const target_section = "tracked_items";
+              const description = "Set 'Do Not Disturb' when this process runs";
+              const default_value_name = "is_tracked";
+              const callback = (name: string, new_val: boolean) => {
+                // prevent context loss
+                (new_val ? this.track.bind(this) : this.untrack.bind(this))(
+                  name
+                );
+              };
+
+              return new Settings.SettingGroup("Target Processes", {
+                callback: this.save_settings.bind(this),
+              }).append(
+                ...this.switch_factory(
+                  target_section,
+                  description,
+                  default_value_name,
+                  callback
+                )
+              );
+            }
+
+            /** This group is for selecting which statuses are set when running/not running targets */
+            get status_menu(): object {
               // prepare a list of possible statuses for the dropdown
               const statuses: Array<object> = [
                 { label: "Online", value: "online" },
@@ -524,6 +833,31 @@ module.exports = (() => {
                 { label: "Do Not Disturb", value: "dnd" },
               ];
 
+              return new Settings.SettingGroup("Statuses", {
+                callback: this.save_settings.bind(this),
+              }).append(
+                new Settings.Dropdown(
+                  "Active status",
+                  "The status to set when one of the targets is running",
+                  this.settings.active_status,
+                  statuses,
+                  (new_status: string) =>
+                    (this.settings.active_status = new_status)
+                ),
+                new Settings.Dropdown(
+                  "Inactive status",
+                  "The status to set when none of the targets are running",
+                  this.settings.inactive_status,
+                  statuses,
+                  (new_status: string) =>
+                    (this.settings.inactive_status = new_status)
+                ),
+                ...this.menu_padding // NOTE: these are needed because the bottommost options in dropdowns were getting cut off the screen
+              );
+            }
+
+            /** This group is for tracking non-default processes */
+            get custom_processes_menu(): object {
               // Put a temporary value in the custom targets Settings.SettingGroup until `get_all_processes` finishes
               let processes_not_loaded_warning: HTMLElement = document.createElement(
                 "p"
@@ -535,12 +869,6 @@ module.exports = (() => {
                   id: "processes_not_loaded_warning",
                 }
               );
-
-              // these are needed because the bottommost options in dropdowns were getting cut off the screen
-              let br_padding: Array<HTMLElement> = [];
-              for (let i = 0; i < 10; i++) {
-                br_padding = br_padding.concat(document.createElement("br"));
-              }
 
               //  populate the list of processes of the dropdown whenever it finishes
               this.get_all_processes().then(
@@ -577,75 +905,36 @@ module.exports = (() => {
                       { searchable: true }
                     ).getElement()
                   );
-                  br_padding.map((element: HTMLElement) =>
+                  this.menu_padding.map((element: HTMLElement) =>
                     setting_group.appendChild(element)
                   ); // add padding
                   warning.remove(); // clean up the warning
                 }
               );
+              return new Settings.SettingGroup("Custom Targets").append(
+                processes_not_loaded_warning
+              );
+            }
 
-              // create and save the settings panel
-              this.settings_panel = Settings.SettingPanel.build(
-                this.save_settings.bind(this),
-
-                // this group is for selecting `targets`
-                new Settings.SettingGroup("Target Processes", {
-                  callback: this.save_settings.bind(this),
-                }).append(...this.button_set()),
-
-                // this group is for selecting which statuses are set when running/not running targets
-                new Settings.SettingGroup("Statuses", {
-                  callback: this.save_settings.bind(this),
-                }).append(
-                  new Settings.Dropdown(
-                    "Active status",
-                    "The status to set when one of the targets is running",
-                    this.settings.active_status,
-                    statuses,
-                    (new_status: string) =>
-                      (this.settings.active_status = new_status)
-                  ),
-                  new Settings.Dropdown(
-                    "Inactive status",
-                    "The status to set when none of the targets are running",
-                    this.settings.inactive_status,
-                    statuses,
-                    (new_status: string) =>
-                      (this.settings.inactive_status = new_status)
-                  ),
-                  ...br_padding
-                ),
-
-                // this group is for tracking non-default processes
-                new Settings.SettingGroup("Custom Targets").append(
-                  processes_not_loaded_warning
+            /** The menu for setting up which channels will be muted when targets are active */
+            get mute_channels_menu(): object {
+              const section_name = "mute_targets";
+              const description =
+                "This channel will be muted when targets are running.";
+              const default_name = "mute";
+              const callback = (name: string, new_value: boolean) => {
+                const target = this.settings.mute_targets[name];
+                target.mute = new_value;
+                this.set_mute(target.guild_id, target.channel_id, new_value); // update the channel mute status is necessary
+              };
+              return new Settings.SettingGroup("Mute Channels").append(
+                ...this.switch_factory(
+                  section_name,
+                  description,
+                  default_name,
+                  callback
                 )
               );
-              return this.settings_panel;
-            }
-
-            async save_settings(): Promise<void> {
-              Bapi.saveData("CodingDND", "settings", this.settings);
-            }
-
-            /**
-             * Create a set of switches to take in whether to check for their status
-             * @returns Settings.Switches that correspond to a tracked item
-             */
-            button_set(): Array<object> {
-              return Object.keys(this.settings.tracked_items).map((name) => {
-                return new Settings.Switch(
-                  name,
-                  "Set 'Do Not Disturb' when this process runs",
-                  this.settings.tracked_items[name].is_tracked,
-                  (new_val: boolean) => {
-                    // prevent context loss
-                    (new_val ? this.track.bind(this) : this.untrack.bind(this))(
-                      name
-                    );
-                  }
-                );
-              });
             }
 
             /**
