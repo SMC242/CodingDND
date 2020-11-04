@@ -236,7 +236,7 @@ module.exports = (() => {
     },
     changelog: [
       {
-        title: "Custom processes are now saved!",
+        tile: "Custom processes are now saved!",
         type: "fixed",
         items: [
           "Custom process settings were sometimes not being saved.",
