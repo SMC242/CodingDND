@@ -494,12 +494,6 @@ module.exports = (() => {
               super.load();
             }
 
-                Object.entries(this.settings.mute_targets).forEach(
-                  ([name, target]) => {
-                    if (target.channel_id === channel_id)
-                      delete this.settings.mute_targets[name];
-                  }
-                );
             /**
              * Set the user's status
              * @param set_to The status to set. This may be dnd, online, invisible, or idle
@@ -595,6 +589,7 @@ module.exports = (() => {
                 Bapi.showToast(
                   `Failed to find channel. Channel id ${channel_id}`
                 );
+                this.remove_mute_channel(undefined, channel_id);
                 return null;
               }
               return channel;
@@ -641,6 +636,36 @@ module.exports = (() => {
               };
               this.settings.mute_targets[channel_name] = to_add;
               this.save_settings();
+            }
+
+            /**
+             * Unregister a mute_channel from the settings object. Either an id or a name can be passed.
+             * @param channel_name The name of the channel
+             * @param channel_id The id of the channel
+             */
+            remove_mute_channel(
+              channel_name: string | undefined,
+              channel_id: string | undefined
+            ) {
+              // raise an error if neither argument was passed
+              if (!channel_name && !channel_id) {
+                throw Error(
+                  "Either channel_name or channel_id must be passed."
+                );
+              }
+
+              if (channel_name) {
+                delete this.settings.mute_targets[channel_name];
+              }
+              // search for the channel name
+              else {
+                Object.entries(this.settings.mute_targets).forEach(
+                  ([name, target]) => {
+                    if (target.channel_id === channel_id)
+                      delete this.settings.mute_targets[name];
+                  }
+                );
+              }
             }
 
             /**
