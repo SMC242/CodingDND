@@ -513,6 +513,21 @@ module.exports = (() => {
               });
             }
 
+            /** Change the user's status depending on whether targets are running */
+            change_status() {
+              // set the status if running, remove status if not running
+              const change_to = this.running.length // an empty list is truthy BRUH
+                ? this.settings.active_status
+                : this.settings.inactive_status;
+
+              // only make an API call if the status will change
+              if (change_to != this.last_status) {
+                Logger.log(`Setting new status: ${change_to}`);
+                this.set_status(change_to);
+                this.last_status = change_to;
+              }
+            }
+
             /**
              * Get the targeted tasks that are running
              */
@@ -564,17 +579,8 @@ module.exports = (() => {
                   }`
                 );
 
-                // set the status if running, remove status if not running
-                const change_to = this.running.length // an empty list is truthy BRUH
-                  ? this.settings.active_status
-                  : this.settings.inactive_status;
-
-                // only make an API call if the status will change
-                if (change_to != this.last_status) {
-                  Logger.log(`Setting new status: ${change_to}`);
-                  this.set_status(change_to);
-                  this.last_status = change_to;
-                }
+                this.change_status();
+                this.update_channel_mutes();
 
                 // sleep for 30 seconds
                 await sleep();
@@ -674,6 +680,23 @@ module.exports = (() => {
               }
             }
 
+            /** Mute/unmute all targeted channels depending on whether targets are running */
+            update_channel_mutes() {
+              const mute = this.targets.length ? true : false;
+              let channels_muted: Array<string> = [];
+              Object.entries(this.settings.mute_targets).forEach(
+                ([name, target]: [string, mute_channel]) => {
+                  if (target.mute) {
+                    this.set_mute(target.guild_id, target.channel_id, mute);
+                    channels_muted.push(name);
+                  }
+                }
+              );
+              Logger.log(
+                `${mute ? "Muted" : "Unmuted"} ${channels_muted.join(", ")}`
+              );
+            }
+
             /**
              * Add the button for adding mute_channels to the channel context menus
              */
@@ -726,7 +749,8 @@ module.exports = (() => {
                 this.save_settings.bind(this),
                 this.target_process_menu,
                 this.status_menu,
-                this.custom_processes_menu
+                this.custom_processes_menu,
+                this.mute_channels_menu
               );
               return this.settings_panel;
             }
@@ -755,7 +779,9 @@ module.exports = (() => {
                   return new Settings.Switch(
                     name,
                     description,
-                    this.settings[setting_section_name][default_value_name],
+                    this.settings[setting_section_name][name][
+                      default_value_name
+                    ],
                     (new_value: boolean) => on_change(name, new_value)
                   );
                 }
@@ -887,6 +913,27 @@ module.exports = (() => {
               );
               return new Settings.SettingGroup("Custom Targets").append(
                 processes_not_loaded_warning
+              );
+            }
+
+            /** The menu for setting up which channels will be muted when targets are active */
+            get mute_channels_menu(): object {
+              const section_name = "mute_targets";
+              const description =
+                "This channel will be muted when targets are running.";
+              const default_name = "mute";
+              const callback = (name: string, new_value: boolean) => {
+                const target = this.settings.mute_targets[name];
+                target.mute = new_value;
+                this.set_mute(target.guild_id, target.channel_id, new_value); // update the channel mute status is necessary
+              };
+              return new Settings.SettingGroup("Mute Channels").append(
+                ...this.switch_factory(
+                  section_name,
+                  description,
+                  default_name,
+                  callback
+                )
               );
             }
 
