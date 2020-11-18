@@ -435,7 +435,7 @@ module.exports = (() => {
                 "updateChannelOverrideSettings"
               );
               this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
-              this.channel_getter = Bapi.findModuleByProps("getChannels");
+              this.channel_getter = Bapi.findModuleByProps("getChannel");
 
               // initialise the settings if this is the first run
               const settings_from_config: unknown = Bapi.loadData(
@@ -464,11 +464,13 @@ module.exports = (() => {
 
               // get the names of the currently tracked processes
               this.targets = Array.from(
-                Object.entries(this.settings.tracked_items), // get the key: value pairs
-                ([alias, item]: [string, tracked_item]): string | null => {
-                  return item.is_tracked ? alias : null; // only add the name's corresponding alias if it's tracked
+                Object.values(this.settings.tracked_items), // get the key: value pairs
+                (item: tracked_item) => {
+                  return item.is_tracked ? item.process_names : null; // only add the name's corresponding alias if it's tracked
                 }
-              ).filter(not_empty); // only keep the strings
+              )
+                .filter(not_empty) // only keep the strings
+                .flat(); // convert to Array<string> instead of Array<Array<string>>
             }
 
             getName() {
@@ -705,7 +707,9 @@ module.exports = (() => {
                 }
               );
               Logger.log(
-                `${mute ? "Muted" : "Unmuted"} ${channels_muted.join(", ")}`
+                `${mute ? "Muted" : "Unmuted"} ${
+                  channels_muted.join(", ") || "0 channels"
+                }`
               );
             }
 
