@@ -435,7 +435,7 @@ module.exports = (() => {
                 "updateChannelOverrideSettings"
               );
               this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
-              this.channel_getter = Bapi.findModuleByProps("getChannels");
+              this.channel_getter = Bapi.findModuleByProps("getChannel");
 
               // initialise the settings if this is the first run
               const settings_from_config: unknown = Bapi.loadData(

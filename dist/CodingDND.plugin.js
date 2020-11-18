@@ -288,7 +288,7 @@ module.exports = (() => {
                         this.status_updater = Bapi.findModuleByProps("updateLocalSettings");
                         this.muter = Bapi.findModuleByProps("updateChannelOverrideSettings");
                         this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
-                        this.channel_getter = Bapi.findModuleByProps("getChannels");
+                        this.channel_getter = Bapi.findModuleByProps("getChannel");
                         // initialise the settings if this is the first run
                         const settings_from_config = Bapi.loadData("CodingDND", "settings");
                         if (settings_from_config) {
@@ -500,7 +500,7 @@ module.exports = (() => {
                                 channels_muted.push(name);
                             }
                         });
-                        Logger.log(`${mute ? "Muted" : "Unmuted"} ${channels_muted.join(", ")}`);
+                        Logger.log(`${mute ? "Muted" : "Unmuted"} ${channels_muted.join(", ") || "0 channels"}`);
                     }
                     /**
                      * Add the button for adding mute_channels to the channel context menus
