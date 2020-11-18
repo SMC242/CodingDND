@@ -707,7 +707,9 @@ module.exports = (() => {
                 }
               );
               Logger.log(
-                `${mute ? "Muted" : "Unmuted"} ${channels_muted.join(", ")}`
+                `${mute ? "Muted" : "Unmuted"} ${
+                  channels_muted.join(", ") || "0 channels"
+                }`
               );
             }
 
