@@ -168,12 +168,20 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "1.0.1",
+            version: "1.1.1",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
         },
         changelog: [
+            {
+                title: "Bug fixes",
+                type: "fixed",
+                items: [
+                    "Fixed issue with loading the targets",
+                    "Channel muting now works again (broken by an API change)",
+                ],
+            },
             {
                 title: "Mute channels update!",
                 type: "added",
@@ -288,7 +296,7 @@ module.exports = (() => {
                         this.status_updater = Bapi.findModuleByProps("updateLocalSettings");
                         this.muter = Bapi.findModuleByProps("updateChannelOverrideSettings");
                         this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
-                        this.channel_getter = Bapi.findModuleByProps("getChannels");
+                        this.channel_getter = Bapi.findModuleByProps("getChannel");
                         // initialise the settings if this is the first run
                         const settings_from_config = Bapi.loadData("CodingDND", "settings");
                         if (settings_from_config) {
@@ -306,10 +314,12 @@ module.exports = (() => {
                             this.settings = default_settings;
                         }
                         // get the names of the currently tracked processes
-                        this.targets = Array.from(Object.entries(this.settings.tracked_items), // get the key: value pairs
-                        ([alias, item]) => {
-                            return item.is_tracked ? alias : null; // only add the name's corresponding alias if it's tracked
-                        }).filter(not_empty); // only keep the strings
+                        this.targets = Array.from(Object.values(this.settings.tracked_items), // get the key: value pairs
+                        (item) => {
+                            return item.is_tracked ? item.process_names : null; // only add the name's corresponding alias if it's tracked
+                        })
+                            .filter(not_empty) // only keep the strings
+                            .flat(); // convert to Array<string> instead of Array<Array<string>>
                     }
                     getName() {
                         return config.info.name;
@@ -498,7 +508,7 @@ module.exports = (() => {
                                 channels_muted.push(name);
                             }
                         });
-                        Logger.log(`${mute ? "Muted" : "Unmuted"} ${channels_muted.join(", ")}`);
+                        Logger.log(`${mute ? "Muted" : "Unmuted"} ${channels_muted.join(", ") || "0 channels"}`);
                     }
                     /**
                      * Add the button for adding mute_channels to the channel context menus
