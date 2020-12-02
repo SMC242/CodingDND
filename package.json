@@ -12,8 +12,8 @@
   "scripts": {
     "tsc": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "mvf": "xcopy .\\dist\\CodingDND.plugin.js C:\\Users\\FiercePC\\AppData\\Roaming\\BetterDiscord\\plugins /q",
-    "mvfl": "xcopy .\\dist\\CodingDND.plugin.js C:\\Users\\Sam\\AppData\\Roaming\\BetterDiscord\\plugins /q",
+    "mvf": "xcopy .\\dist\\CodingDND.plugin.js C:\\Users\\FiercePC\\AppData\\Roaming\\BetterDiscord\\plugins /y",
+    "mvfl": "xcopy .\\dist\\CodingDND.plugin.js C:\\Users\\Sam\\AppData\\Roaming\\BetterDiscord\\plugins /y",
     "buildl": "tsc && npm run-script mvfl",
     "build": "tsc && npm run-script mvf"
   },
