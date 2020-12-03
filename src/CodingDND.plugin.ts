@@ -412,7 +412,7 @@ module.exports = (() => {
             running: Array<string>; // the currently running targets
             settings: settings_obj; // the current settings. This will be saved to `CodingDND.config.json`
             run_loop: boolean; // the flag for whether to keep the trakcing loop running
-            last_status: string | null; // The last status that was set. Used to avoid unnecessary API calls. Must be in ['online', 'invisible', 'idle', 'dnd']
+            last_status: string; // The last status that was set. Used to avoid unnecessary API calls. Must be in ['online', 'invisible', 'idle', 'dnd']
             get_all_processes: process_parser; // The function that gets the process list. This is defined at runtime
             settings_panel: HTMLElement | undefined; // the Settings.SettingsPanel to be updated after some variables load
             status_updater: any; // the webpack module used to update the status
@@ -558,6 +558,7 @@ module.exports = (() => {
                 : this.settings.inactive_status;
 
               // only make an API call if the status will change
+              console.log(change_to, this.last_status);
               Logger.log(
                 `Status is different: ${change_to !== this.last_status}`
               );
@@ -640,7 +641,7 @@ module.exports = (() => {
                   return;
                 }
 
-                this.current_status = this.get_status();
+                this.last_status = this.get_status();
                 Logger.log(
                   `Refreshed cached status. New cached status: ${this.current_status}`
                 );

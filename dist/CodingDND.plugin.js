@@ -385,6 +385,7 @@ module.exports = (() => {
                             ? this.settings.active_status
                             : this.settings.inactive_status;
                         // only make an API call if the status will change
+                        console.log(change_to, this.last_status);
                         Logger.log(`Status is different: ${change_to !== this.last_status}`);
                         if (change_to !== this.last_status) {
                             Logger.log(`Setting new status: ${change_to}`);
@@ -447,7 +448,7 @@ module.exports = (() => {
                                 Logger.log("Status refresh loop killed.");
                                 return;
                             }
-                            this.current_status = this.get_status();
+                            this.last_status = this.get_status();
                             Logger.log(`Refreshed cached status. New cached status: ${this.current_status}`);
                             await sleep();
                         }
