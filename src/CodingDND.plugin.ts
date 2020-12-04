@@ -265,7 +265,7 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "1.1.1",
+      version: "1.2.",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
@@ -273,6 +273,13 @@ module.exports = (() => {
         "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
     },
     changelog: [
+      {
+        title: "Auto-refreshing status cache",
+        type: "added",
+        items: [
+          "The plug-in now copes with other devices changing the status.",
+        ],
+      },
       {
         title: "Bug fixes",
         type: "fixed",
@@ -558,10 +565,6 @@ module.exports = (() => {
                 : this.settings.inactive_status;
 
               // only make an API call if the status will change
-              console.log(change_to, this.last_status);
-              Logger.log(
-                `Status is different: ${change_to !== this.last_status}`
-              );
               if (change_to !== this.last_status) {
                 Logger.log(`Setting new status: ${change_to}`);
                 this.set_status(change_to);
