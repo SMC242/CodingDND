@@ -168,12 +168,19 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "1.1.1",
+            version: "1.2.",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
         },
         changelog: [
+            {
+                title: "Auto-refreshing status cache",
+                type: "added",
+                items: [
+                    "The plug-in now copes with other devices changing the status.",
+                ],
+            },
             {
                 title: "Bug fixes",
                 type: "fixed",
@@ -289,14 +296,15 @@ module.exports = (() => {
                         this.settings_panel;
                         // get process parser
                         this.get_all_processes = get_process_parser(); // decide the platform only once
-                        // initialise last_status to the current status
-                        this.last_status = Bapi.findModuleByProps("getStatus").getStatus(Bapi.findModuleByProps("getToken").getId() // get the current user's ID
-                        );
                         // get the relevant webpack modules
                         this.status_updater = Bapi.findModuleByProps("updateLocalSettings");
                         this.muter = Bapi.findModuleByProps("updateChannelOverrideSettings");
                         this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
                         this.channel_getter = Bapi.findModuleByProps("getChannel");
+                        this.status_getter = Bapi.findModuleByProps("getStatus");
+                        this.token_getter = Bapi.findModuleByProps("getToken");
+                        // initialise last_status to the current status
+                        this.last_status = this.get_status();
                         // initialise the settings if this is the first run
                         const settings_from_config = Bapi.loadData("CodingDND", "settings");
                         if (settings_from_config) {
@@ -342,6 +350,9 @@ module.exports = (() => {
                         this.run_loop = true; // ensure that the loop restarts in the case of a reload
                         this.loop();
                         Logger.log("Tracking loop started");
+                        // start the status updater
+                        this.status_refresh_loop();
+                        Logger.log("Status refresher loop started");
                         // patch the menus
                         this.patch_channel_ctx_menu();
                         Logger.log("Injected custom channel context menus");
@@ -353,6 +364,7 @@ module.exports = (() => {
                     }
                     load() {
                         super.load();
+                        this.run_loop = true; // in case it's being reloaded
                     }
                     /**
                      * Set the user's status
@@ -366,6 +378,13 @@ module.exports = (() => {
                             status: set_to,
                         });
                     }
+                    /**
+                     * Get the user's current status
+                     */
+                    get_status() {
+                        return this.status_getter.getStatus(this.token_getter.getId() // get the current user's ID
+                        );
+                    }
                     /** Change the user's status depending on whether targets are running */
                     change_status() {
                         // set the status if running, remove status if not running
@@ -373,7 +392,7 @@ module.exports = (() => {
                             ? this.settings.active_status
                             : this.settings.inactive_status;
                         // only make an API call if the status will change
-                        if (change_to != this.last_status) {
+                        if (change_to !== this.last_status) {
                             Logger.log(`Setting new status: ${change_to}`);
                             this.set_status(change_to);
                             this.last_status = change_to;
@@ -420,6 +439,22 @@ module.exports = (() => {
                             this.change_status();
                             this.update_channel_mutes();
                             // sleep for 30 seconds
+                            await sleep();
+                        }
+                    }
+                    /**
+                     * Refresh `last_status` every 10 minutes in case it changes manually.
+                     */
+                    async status_refresh_loop() {
+                        const sleep = () => new Promise((r) => setTimeout(r, 600000)); // sleep for 10 minutes
+                        while (true) {
+                            // exit if cancelled
+                            if (!this.run_loop) {
+                                Logger.log("Status refresh loop killed.");
+                                return;
+                            }
+                            this.last_status = this.get_status();
+                            Logger.log(`Refreshed cached status. New cached status: ${this.current_status}`);
                             await sleep();
                         }
                     }
