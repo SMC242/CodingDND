@@ -1,11 +1,19 @@
-This BetterDiscord plugin will set your statuses and mute channels when certai processes run.
+This BetterDiscord plugin will set your statuses and mute channels when certain processes run.
 NOTE: Linux support is patchy at the moment
 
 ## <u>Preview</u>
 
-<a href = "https://streamable.com/pwpq7i">Video of the plug-in in action</a>
+<a href = "https://youtu.be/NqZqJjjnrvQ">Video of the plug-in in action</a>
 
-<a href = "https://ibb.co/W0vBk3T">Settings panel preview</a>
+<u>Settings panel preview</u>
+
+<a href="https://cdn.discordapp.com/attachments/660950914202599427/801773041511956521/targets.PNG">Target selection</a>
+
+<a href="https://cdn.discordapp.com/attachments/660950914202599427/801773038794047508/statuses.PNG">Status selection</a>
+
+<a href="https://cdn.discordapp.com/attachments/660950914202599427/801773036167888896/custom.png">Custom target selection</a>
+
+<a href="https://cdn.discordapp.com/attachments/660950914202599427/801773033928261693/mute.PNG">Channel mute selection</a>
 
 ## <u>Installation</u>
 
