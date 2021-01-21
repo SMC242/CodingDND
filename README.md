@@ -36,7 +36,7 @@ Most of the action happens inside the settings menu.
 
 ### Setting non-default targets
 
-- Go to `Custom Targets
+- Go to `Custom Targets`
 - Type the name of the program you wish to target
   - You'll need to write the name of the executable without its extension
 - Click the result
