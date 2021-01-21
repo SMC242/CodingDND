@@ -1,7 +1,7 @@
 /**
  * @name CodingDND
  * @invite d65ujkS
- * @authorId "395598378387636234"
+ * @authorId 395598378387636234
  * @website https://github.com/SMC242/CodingDND
  * @source https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js
  */
@@ -175,6 +175,21 @@ module.exports = (() => {
         },
         changelog: [
             {
+                title: "Fixed buggy unmuting",
+                type: "fixed",
+                items: [
+                    "Sometimes, channels were not unmuted when no targets are running.",
+                ],
+            },
+            {
+                title: "Getting the plug-in approved by the BDAPI guys",
+                type: "fixed",
+                items: [
+                    "Fixed wrong ID in META",
+                    "Switched from `getToken` to `getCurrentUser`",
+                ],
+            },
+            {
                 title: "Auto-refreshing status cache",
                 type: "added",
                 items: [
@@ -302,7 +317,7 @@ module.exports = (() => {
                         this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
                         this.channel_getter = Bapi.findModuleByProps("getChannel");
                         this.status_getter = Bapi.findModuleByProps("getStatus");
-                        this.token_getter = Bapi.findModuleByProps("getToken");
+                        this.user_id = Bapi.findModuleByProps("getCurrentUser").getCurrentUser().id;
                         // initialise last_status to the current status
                         this.last_status = this.get_status();
                         // initialise the settings if this is the first run
@@ -382,7 +397,7 @@ module.exports = (() => {
                      * Get the user's current status
                      */
                     get_status() {
-                        return this.status_getter.getStatus(this.token_getter.getId() // get the current user's ID
+                        return this.status_getter.getStatus(this.user_id // get the current user's ID
                         );
                     }
                     /** Change the user's status depending on whether targets are running */
