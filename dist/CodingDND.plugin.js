@@ -550,7 +550,7 @@ module.exports = (() => {
                     }
                     /** Mute/unmute all targeted channels depending on whether targets are running */
                     update_channel_mutes() {
-                        const mute = this.running.length ? true : false;
+                        const mute = this.targets.length ? true : false;
                         let channels_muted = [];
                         Object.entries(this.settings.mute_targets).forEach(([name, target]) => {
                             if (target.mute) {
