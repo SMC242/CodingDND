@@ -168,7 +168,7 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "1.2.",
+            version: "1.2.2",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
@@ -550,7 +550,7 @@ module.exports = (() => {
                     }
                     /** Mute/unmute all targeted channels depending on whether targets are running */
                     update_channel_mutes() {
-                        const mute = this.targets.length ? true : false;
+                        const mute = this.running.length ? true : false;
                         let channels_muted = [];
                         Object.entries(this.settings.mute_targets).forEach(([name, target]) => {
                             if (target.mute) {
