@@ -168,12 +168,17 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "1.2.2",
+            version: "1.2.3",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
         },
         changelog: [
+            {
+                title: "Removed some logging",
+                type: "Fixed",
+                items: ["Removed the [PATCHED] prefix"],
+            },
             {
                 title: "Fixed buggy unmuting",
                 type: "fixed",
@@ -358,9 +363,6 @@ module.exports = (() => {
                     }
                     onStart() {
                         Logger.log("Started");
-                        Patcher.before(Logger, "log", (t, a) => {
-                            a[0] = "Patched Message: " + a[0];
-                        });
                         // start the loop
                         this.run_loop = true; // ensure that the loop restarts in the case of a reload
                         this.loop();
@@ -550,7 +552,7 @@ module.exports = (() => {
                     }
                     /** Mute/unmute all targeted channels depending on whether targets are running */
                     update_channel_mutes() {
-                        const mute = this.targets.length ? true : false;
+                        const mute = this.running.length ? true : false;
                         let channels_muted = [];
                         Object.entries(this.settings.mute_targets).forEach(([name, target]) => {
                             if (target.mute) {
