@@ -265,7 +265,7 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "1.2.2",
+      version: "1.2.3",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
@@ -273,6 +273,11 @@ module.exports = (() => {
         "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
     },
     changelog: [
+      {
+        title: "Removed some logging",
+        type: "Fixed",
+        items: ["Removed the [PATCHED] prefix"],
+      },
       {
         title: "Fixed buggy unmuting",
         type: "fixed",
@@ -522,9 +527,6 @@ module.exports = (() => {
 
             onStart() {
               Logger.log("Started");
-              Patcher.before(Logger, "log", (t, a) => {
-                a[0] = "Patched Message: " + a[0];
-              });
 
               // start the loop
               this.run_loop = true; // ensure that the loop restarts in the case of a reload
