@@ -175,6 +175,21 @@ module.exports = (() => {
         },
         changelog: [
             {
+                title: "Fixed buggy unmuting",
+                type: "fixed",
+                items: [
+                    "Sometimes, channels were not unmuted when no targets are running.",
+                ],
+            },
+            {
+                title: "Getting the plug-in approved by the BDAPI guys",
+                type: "fixed",
+                items: [
+                    "Fixed wrong ID in META",
+                    "Switched from `getToken` to `getCurrentUser`",
+                ],
+            },
+            {
                 title: "Auto-refreshing status cache",
                 type: "added",
                 items: [
@@ -535,7 +550,7 @@ module.exports = (() => {
                     }
                     /** Mute/unmute all targeted channels depending on whether targets are running */
                     update_channel_mutes() {
-                        const mute = this.targets.length ? true : false;
+                        const mute = this.running.length ? true : false;
                         let channels_muted = [];
                         Object.entries(this.settings.mute_targets).forEach(([name, target]) => {
                             if (target.mute) {
