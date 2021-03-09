@@ -205,6 +205,10 @@ interface misc_settings {
    * Enables logging for every interesting variable
    */
   logger_enabled: boolean;
+  /**
+   * Whether to not change the status when the user is invisible
+   */
+  ignore_invisible: boolean;
 }
 
 type Status = "online" | "idle" | "invisible" | "dnd";
@@ -265,6 +269,7 @@ const default_settings: settings_obj = {
   inactive_status: "online",
   misc_settings: {
     logger_enabled: false,
+    ignore_invisible: true,
   },
 };
 
@@ -281,7 +286,7 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "2.2.4",
+      version: "3.2.4",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
@@ -290,11 +295,20 @@ module.exports = (() => {
     },
     changelog: [
       {
+        title: "Ignoring invisible status",
+        type: "added",
+        items: [
+          "You can now opt to not have your status changed when you are invisible",
+          'This involved changing the settings file so you must delete your settings file or add `"ignore_invisible": true` to your settings file',
+        ],
+      },
+      {
         title: "New logger setting and minor bug fix",
         type: "added",
         items: [
           "You can now choose whether you want the log spam in `Setings -> Misc Settings -> Enable logger`",
           "Prevented `undefined` value for cached status",
+          'This involved a change to the settings format so you will need to delete your settings file or add "misc_settings": { "logger_enabled": false }` to the `settings` object of the file',
         ],
       },
       {
@@ -605,7 +619,6 @@ module.exports = (() => {
              * Get the user's current status
              */
             get_status(): Status {
-              this.log_func(`ID: ${this.user_id}`);
               const status = this.status_getter.getStatus(
                 this.user_id // get the current user's ID
               );
@@ -615,6 +628,14 @@ module.exports = (() => {
 
             /** Change the user's status depending on whether targets are running */
             change_status() {
+              // Do not update status while invisible unless the setting is disabled
+              if (
+                this.settings.misc_settings.ignore_invisible &&
+                this.get_status() === "invisible"
+              ) {
+                this.log_func("Didn't update status as the user is invisible");
+                return;
+              }
               // set the status if running, remove status if not running
               const change_to = this.running.length // an empty list is truthy BRUH
                 ? this.settings.active_status
@@ -1077,6 +1098,13 @@ module.exports = (() => {
                   this.settings.misc_settings.logger_enabled,
                   (new_val: boolean) =>
                     (this.settings.misc_settings.logger_enabled = new_val)
+                ),
+                new Settings.Switch(
+                  "Ignore invisible",
+                  "Don't update the status if the status is invisible",
+                  this.settings.misc_settings.ignore_invisible,
+                  (new_val: boolean) =>
+                    (this.settings.misc_settings.ignore_invisible = new_val)
                 )
               );
             }

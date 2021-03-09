@@ -158,6 +158,7 @@ const default_settings = {
     inactive_status: "online",
     misc_settings: {
         logger_enabled: false,
+        ignore_invisible: true,
     },
 };
 module.exports = (() => {
@@ -171,18 +172,27 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "2.2.4",
+            version: "3.2.4",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
         },
         changelog: [
             {
+                title: "Ignoring invisible status",
+                type: "added",
+                items: [
+                    "You can now opt to not have your status changed when you are invisible",
+                    'This involved changing the settings file so you must delete your settings file or add `"ignore_invisible": true` to your settings file',
+                ],
+            },
+            {
                 title: "New logger setting and minor bug fix",
                 type: "added",
                 items: [
                     "You can now choose whether you want the log spam in `Setings -> Misc Settings -> Enable logger`",
                     "Prevented `undefined` value for cached status",
+                    'This involved a change to the settings format so you will need to delete your settings file or add "misc_settings": { "logger_enabled": false }` to the `settings` object of the file',
                 ],
             },
             {
@@ -419,7 +429,6 @@ module.exports = (() => {
                      * Get the user's current status
                      */
                     get_status() {
-                        this.log_func(`ID: ${this.user_id}`);
                         const status = this.status_getter.getStatus(this.user_id // get the current user's ID
                         );
                         this.log_func(`Fetched status: ${status}`);
@@ -427,6 +436,12 @@ module.exports = (() => {
                     }
                     /** Change the user's status depending on whether targets are running */
                     change_status() {
+                        // Do not update status while invisible unless the setting is disabled
+                        if (this.settings.misc_settings.ignore_invisible &&
+                            this.get_status() === "invisible") {
+                            this.log_func("Didn't update status as the user is invisible");
+                            return;
+                        }
                         // set the status if running, remove status if not running
                         const change_to = this.running.length // an empty list is truthy BRUH
                             ? this.settings.active_status
@@ -718,7 +733,7 @@ module.exports = (() => {
                         return new Settings.SettingGroup("Mute Channels").append(...this.switch_factory(section_name, description, default_name, callback));
                     }
                     get misc_settings_menu() {
-                        return new Settings.SettingGroup("Misc Settings").append(new Settings.Switch("Enable logger", "Enable logging of state to the console. This is useful when reporting a bug.", this.settings.misc_settings.logger_enabled, (new_val) => (this.settings.misc_settings.logger_enabled = new_val)));
+                        return new Settings.SettingGroup("Misc Settings").append(new Settings.Switch("Enable logger", "Enable logging of state to the console. This is useful when reporting a bug.", this.settings.misc_settings.logger_enabled, (new_val) => (this.settings.misc_settings.logger_enabled = new_val)), new Settings.Switch("Ignore invisible", "Don't update the status if the status is invisible", this.settings.misc_settings.ignore_invisible, (new_val) => (this.settings.misc_settings.ignore_invisible = new_val)));
                     }
                     /**
                      * Register a new process to track
