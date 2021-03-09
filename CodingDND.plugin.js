@@ -172,7 +172,7 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "3.2.4",
+            version: "3.2.5",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
@@ -183,7 +183,7 @@ module.exports = (() => {
                 type: "added",
                 items: [
                     "You can now opt to not have your status changed when you are invisible",
-                    'This involved changing the settings file so you must delete your settings file or add `"ignore_invisible": true` to your settings file',
+                    'This involved changing the settings file so you must delete your settings file or add `"ignore_invisible": true` to `"misc_settings"` in your settings file',
                 ],
             },
             {
