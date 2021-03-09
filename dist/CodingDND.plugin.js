@@ -156,6 +156,9 @@ const default_settings = {
     mute_targets: {},
     active_status: "dnd",
     inactive_status: "online",
+    misc_settings: {
+        logger_enabled: false,
+    },
 };
 module.exports = (() => {
     const config = {
@@ -168,12 +171,20 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "1.2.3",
+            version: "2.2.4",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
         },
         changelog: [
+            {
+                title: "New logger setting and minor bug fix",
+                type: "added",
+                items: [
+                    "You can now choose whether you want the log spam in `Setings -> Misc Settings -> Enable logger`",
+                    "Prevented `undefined` value for cached status",
+                ],
+            },
             {
                 title: "Removed some logging",
                 type: "Fixed",
@@ -366,16 +377,16 @@ module.exports = (() => {
                         // start the loop
                         this.run_loop = true; // ensure that the loop restarts in the case of a reload
                         this.loop();
-                        Logger.log("Tracking loop started");
+                        this.log_func("Tracking loop started");
                         // start the status updater
                         this.status_refresh_loop();
-                        Logger.log("Status refresher loop started");
+                        this.log_func("Status refresher loop started");
                         // patch the menus
                         this.patch_channel_ctx_menu();
-                        Logger.log("Injected custom channel context menus");
+                        this.log_func("Injected custom channel context menus");
                     }
                     onStop() {
-                        Logger.log("Stopped");
+                        this.log_func("Stopped");
                         this.run_loop = false;
                         Patcher.unpatchAll();
                     }
@@ -396,11 +407,23 @@ module.exports = (() => {
                         });
                     }
                     /**
+                     * Decide whether to log state or not based on `this.settings.misc_settings.logger_enabled`
+                     */
+                    get log_func() {
+                        // this might be called before the initialiser, so it's needed to check settings
+                        return this.settings && this.settings.misc_settings.logger_enabled
+                            ? (msg) => Logger.log(msg)
+                            : () => { };
+                    }
+                    /**
                      * Get the user's current status
                      */
                     get_status() {
-                        return this.status_getter.getStatus(this.user_id // get the current user's ID
+                        this.log_func(`ID: ${this.user_id}`);
+                        const status = this.status_getter.getStatus(this.user_id // get the current user's ID
                         );
+                        this.log_func(`Fetched status: ${status}`);
+                        return status;
                     }
                     /** Change the user's status depending on whether targets are running */
                     change_status() {
@@ -410,7 +433,7 @@ module.exports = (() => {
                             : this.settings.inactive_status;
                         // only make an API call if the status will change
                         if (change_to !== this.last_status) {
-                            Logger.log(`Setting new status: ${change_to}`);
+                            this.log_func(`Setting new status: ${change_to}`);
                             this.set_status(change_to);
                             this.last_status = change_to;
                         }
@@ -436,7 +459,7 @@ module.exports = (() => {
                         while (true) {
                             // exit if cancelled
                             if (!this.run_loop) {
-                                Logger.log("Tracking loop killed.");
+                                this.log_func("Tracking loop killed.");
                                 return;
                             }
                             // get the running targeted tasks
@@ -452,7 +475,7 @@ module.exports = (() => {
                                 }
                             });
                             // log the new `running`
-                            Logger.log(`Running targets detected: ${this.running.length ? this.running : "None"}`);
+                            this.log_func(`Running targets detected: ${this.running.length ? this.running : "None"}`);
                             this.change_status();
                             this.update_channel_mutes();
                             // sleep for 30 seconds
@@ -467,11 +490,11 @@ module.exports = (() => {
                         while (true) {
                             // exit if cancelled
                             if (!this.run_loop) {
-                                Logger.log("Status refresh loop killed.");
+                                this.log_func("Status refresh loop killed.");
                                 return;
                             }
                             this.last_status = this.get_status();
-                            Logger.log(`Refreshed cached status. New cached status: ${this.current_status}`);
+                            this.log_func(`Refreshed cached status. New cached status: ${this.last_status}`);
                             await sleep();
                         }
                     }
@@ -560,7 +583,7 @@ module.exports = (() => {
                                 channels_muted.push(name);
                             }
                         });
-                        Logger.log(`${mute ? "Muted" : "Unmuted"} ${channels_muted.join(", ") || "0 channels"}`);
+                        this.log_func(`${mute ? "Muted" : "Unmuted"} ${channels_muted.join(", ") || "0 channels"}`);
                     }
                     /**
                      * Add the button for adding mute_channels to the channel context menus
@@ -593,7 +616,7 @@ module.exports = (() => {
                     }
                     getSettingsPanel() {
                         // create and save the settings panel
-                        this.settings_panel = Settings.SettingPanel.build(this.save_settings.bind(this), this.target_process_menu, this.status_menu, this.custom_processes_menu, this.mute_channels_menu);
+                        this.settings_panel = Settings.SettingPanel.build(this.save_settings.bind(this), this.target_process_menu, this.status_menu, this.custom_processes_menu, this.mute_channels_menu, this.misc_settings_menu);
                         return this.settings_panel;
                     }
                     async save_settings() {
@@ -694,12 +717,15 @@ module.exports = (() => {
                         };
                         return new Settings.SettingGroup("Mute Channels").append(...this.switch_factory(section_name, description, default_name, callback));
                     }
+                    get misc_settings_menu() {
+                        return new Settings.SettingGroup("Misc Settings").append(new Settings.Switch("Enable logger", "Enable logging of state to the console. This is useful when reporting a bug.", this.settings.misc_settings.logger_enabled, (new_val) => (this.settings.misc_settings.logger_enabled = new_val)));
+                    }
                     /**
                      * Register a new process to track
                      * @param name The name to register
                      */
                     track(name) {
-                        Logger.log(`Tracked ${name}`);
+                        this.log_func(`Tracked ${name}`);
                         this.settings.tracked_items[name].is_tracked = true;
                         this.targets.push(...this.settings.tracked_items[name].process_names);
                     }
@@ -708,7 +734,7 @@ module.exports = (() => {
                      * @param name The name to unregister
                      */
                     untrack(name) {
-                        Logger.log(`Untracked ${name}`);
+                        this.log_func(`Untracked ${name}`);
                         this.settings.tracked_items[name].is_tracked = false;
                         const actual_names = this.settings
                             .tracked_items[name].process_names;
