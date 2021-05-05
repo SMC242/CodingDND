@@ -162,7 +162,8 @@ const default_settings = {
     },
 };
 module.exports = {
-    CodingDND: (() => {
+    // prettier-ignore
+    "CodingDND": (() => {
         const config = {
             info: {
                 name: "CodingDND",
@@ -345,8 +346,22 @@ module.exports = {
                             this.channel_getter = Bapi.findModuleByProps("getChannel");
                             this.status_getter = Bapi.findModuleByProps("getStatus");
                             this.user_id = Bapi.findModuleByProps("getCurrentUser").getCurrentUser().id;
+                            console.log({
+                                running: this.running,
+                                targets: this.targets,
+                                run_loop: this.run_loop,
+                                settings_panel: this.settings_panel,
+                                get_all_processes: this.get_all_processes,
+                                status_updater: this.status_updater,
+                                muter: this.muter,
+                                mute_getter: this.mute_getter,
+                                channel_getter: this.channel_getter,
+                                status_getter: this.status_getter,
+                                user_id: this.user_id,
+                            });
                             // initialise last_status to the current status
                             this.last_status = this.get_status();
+                            console.log({ last_status: this.last_status });
                             // initialise the settings if this is the first run
                             const settings_from_config = Bapi.loadData("CodingDND", "settings");
                             if (settings_from_config) {
@@ -383,7 +398,7 @@ module.exports = {
                         getVersion() {
                             return config.info.version;
                         }
-                        onStart() {
+                        start() {
                             Logger.log("Started");
                             // start the loop
                             this.run_loop = true; // ensure that the loop restarts in the case of a reload
@@ -396,7 +411,7 @@ module.exports = {
                             this.patch_channel_ctx_menu();
                             this.log_func("Injected custom channel context menus");
                         }
-                        onStop() {
+                        stop() {
                             this.log_func("Stopped");
                             this.run_loop = false;
                             Patcher.unpatchAll();
@@ -799,6 +814,5 @@ module.exports = {
             })(global.ZeresPluginLibrary.buildPlugin(config));
     })(),
 };
-console.log(module.exports["CodingDND"] || "Plugin undefined");
-/*@end@*/
+// compile
 //# sourceMappingURL=CodingDND.plugin.js.map

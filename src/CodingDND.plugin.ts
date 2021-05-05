@@ -276,7 +276,8 @@ const default_settings: settings_obj = {
 type log_funcT = (msg: string) => void | (() => {});
 
 module.exports = {
-  CodingDND: (() => {
+  // prettier-ignore
+  "CodingDND": (() => {
     const config = {
       info: {
         name: "CodingDND",
@@ -511,9 +512,23 @@ module.exports = {
                 this.user_id = Bapi.findModuleByProps(
                   "getCurrentUser"
                 ).getCurrentUser().id;
+                console.log({
+                    running: this.running,
+                    targets: this.targets,
+                    run_loop: this.run_loop,
+                    settings_panel: this.settings_panel,
+                    get_all_processes: this.get_all_processes,
+                    status_updater: this.status_updater,
+                    muter: this.muter,
+                    mute_getter: this.mute_getter,
+                    channel_getter: this.channel_getter,
+                    status_getter: this.status_getter,
+                    user_id: this.user_id,
+                })
 
                 // initialise last_status to the current status
                 this.last_status = this.get_status();
+                console.log({last_status: this.last_status});
 
                 // initialise the settings if this is the first run
                 const settings_from_config: unknown = Bapi.loadData(
@@ -564,7 +579,7 @@ module.exports = {
                 return config.info.version;
               }
 
-              onStart() {
+              start() {
                 Logger.log("Started");
 
                 // start the loop
@@ -580,7 +595,7 @@ module.exports = {
                 this.patch_channel_ctx_menu();
                 this.log_func("Injected custom channel context menus");
               }
-              onStop() {
+              stop() {
                 this.log_func("Stopped");
                 this.run_loop = false;
                 Patcher.unpatchAll();
@@ -1201,5 +1216,4 @@ module.exports = {
         })(global.ZeresPluginLibrary.buildPlugin(config));
   })(),
 };
-console.log(module.exports["CodingDND"] || "Plugin undefined");
-/*@end@*/
+// compile
