@@ -295,6 +295,16 @@ module.exports = (() => {
     },
     changelog: [
       {
+        Title: "Made the plugin work again!",
+        type: "fixed",
+        items: [
+          "The plugin wouldn't start",
+          "Sorry for the delay on fixing this",
+          "The problem was that the user isn't available for a while in this latest version of Discord",
+          "The plugin now retries until it gets a user or it times out after 30 seconds",
+        ],
+      },
+      {
         title: "Ignoring invisible status",
         type: "added",
         items: [
