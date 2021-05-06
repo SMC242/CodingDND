@@ -172,12 +172,22 @@ module.exports = (() => {
                     github_username: "SMC242",
                 },
             ],
-            version: "3.2.5",
+            version: "3.2.6",
             description: "This plugin will set the Do Not Disturb status when you open an IDE.",
             github: "https://github.com/SMC242/CodingDND/tree/stable",
             github_raw: "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
         },
         changelog: [
+            {
+                Title: "Made the plugin work again!",
+                type: "fixed",
+                items: [
+                    "The plugin wouldn't start",
+                    "Sorry for the delay on fixing this",
+                    "The problem was that the user isn't available for a while in this latest version of Discord",
+                    "The plugin now retries until it gets a user or it times out after 30 seconds",
+                ],
+            },
             {
                 title: "Ignoring invisible status",
                 type: "added",
@@ -343,7 +353,6 @@ module.exports = (() => {
                         this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
                         this.channel_getter = Bapi.findModuleByProps("getChannel");
                         this.status_getter = Bapi.findModuleByProps("getStatus");
-                        this.user_id = Bapi.findModuleByProps("getCurrentUser").getCurrentUser().id;
                         // initialise last_status to the current status
                         this.last_status = this.get_status();
                         // initialise the settings if this is the first run
@@ -382,7 +391,7 @@ module.exports = (() => {
                     getVersion() {
                         return config.info.version;
                     }
-                    onStart() {
+                    start() {
                         Logger.log("Started");
                         // start the loop
                         this.run_loop = true; // ensure that the loop restarts in the case of a reload
@@ -395,13 +404,36 @@ module.exports = (() => {
                         this.patch_channel_ctx_menu();
                         this.log_func("Injected custom channel context menus");
                     }
-                    onStop() {
+                    stop() {
                         this.log_func("Stopped");
                         this.run_loop = false;
                         Patcher.unpatchAll();
                     }
                     load() {
                         super.load();
+                        this.load_user();
+                    }
+                    /**
+                     * Wait until the user has logged in. Set `user_id` and `run_loop`
+                     */
+                    async load_user() {
+                        // The user isn't instantiated until loaded
+                        const get_user = () => Bapi.findModuleByProps("getCurrentUser").getCurrentUser();
+                        let user;
+                        // try getting the user every second until successful
+                        for (let attempt = 0; attempt < 10; attempt++) {
+                            this.log_func(`Attempt ${attempt + 1}: trying to get the user id`);
+                            await this.sleep(3000);
+                            user = get_user();
+                        }
+                        if (!user) {
+                            Bapi.showToast("Couldn't get user ID. Cannot run loop.", {
+                                type: "error",
+                            });
+                            throw new Error("Couldn't get user ID.");
+                        }
+                        this.user_id = user.id;
+                        this.log_func("Got user id. Ready to start loop");
                         this.run_loop = true; // in case it's being reloaded
                     }
                     /**
@@ -466,11 +498,13 @@ module.exports = (() => {
                         })
                             .filter(not_empty); // check if any of the values are truthy
                     }
+                    async sleep(ms) {
+                        return new Promise((r) => setTimeout(r, ms));
+                    }
                     /**
                      * Continually check for a target being started or stopped
                      */
                     async loop() {
-                        const sleep = () => new Promise((r) => setTimeout(r, 30000)); // sleep for 30 seconds
                         while (true) {
                             // exit if cancelled
                             if (!this.run_loop) {
@@ -494,7 +528,7 @@ module.exports = (() => {
                             this.change_status();
                             this.update_channel_mutes();
                             // sleep for 30 seconds
-                            await sleep();
+                            await this.sleep(30000);
                         }
                     }
                     /**
@@ -796,5 +830,4 @@ module.exports = (() => {
             // @ts-ignore
         })(global.ZeresPluginLibrary.buildPlugin(config));
 })();
-/*@end@*/
 //# sourceMappingURL=CodingDND.plugin.js.map
