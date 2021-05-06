@@ -1,7 +1,7 @@
 /**
  * @name CodingDND
  * @invite d65ujkS
- * @authorId "395598378387636234"
+ * @authorId 395598378387636234
  * @website https://github.com/SMC242/CodingDND
  * @source https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js
  */
@@ -200,6 +200,19 @@ interface mute_channel {
   guild_id: string;
 }
 
+interface misc_settings {
+  /**
+   * Enables logging for every interesting variable
+   */
+  logger_enabled: boolean;
+  /**
+   * Whether to not change the status when the user is invisible
+   */
+  ignore_invisible: boolean;
+}
+
+type Status = "online" | "idle" | "invisible" | "dnd";
+
 /**
  * The internal settings object
  */
@@ -215,11 +228,13 @@ interface settings_obj {
   /**
    * The alias of the target and information about its tracking status and potential names.
    */
-  active_status: string;
+  active_status: Status;
   /**
-   * The status to set when one of the targets is not running. Must be one of: ["online", "idle", "invisible", "dnd"]
+   * The status to set when one of the targets is not running
    */
-  inactive_status: string;
+  inactive_status: Status;
+
+  misc_settings: misc_settings;
 }
 
 const default_settings: settings_obj = {
@@ -252,7 +267,13 @@ const default_settings: settings_obj = {
   mute_targets: {},
   active_status: "dnd",
   inactive_status: "online",
+  misc_settings: {
+    logger_enabled: false,
+    ignore_invisible: true,
+  },
 };
+
+type log_funcT = (msg: string) => void | (() => {});
 
 module.exports = (() => {
   const config = {
@@ -265,7 +286,7 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "1.2.",
+      version: "3.2.6",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
@@ -273,6 +294,43 @@ module.exports = (() => {
         "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
     },
     changelog: [
+      {
+        title: "Ignoring invisible status",
+        type: "added",
+        items: [
+          "You can now opt to not have your status changed when you are invisible",
+          'This involved changing the settings file so you must delete your settings file or add `"ignore_invisible": true` to `"misc_settings"` in your settings file',
+        ],
+      },
+      {
+        title: "New logger setting and minor bug fix",
+        type: "added",
+        items: [
+          "You can now choose whether you want the log spam in `Setings -> Misc Settings -> Enable logger`",
+          "Prevented `undefined` value for cached status",
+          'This involved a change to the settings format so you will need to delete your settings file or add "misc_settings": { "logger_enabled": false }` to the `settings` object of the file',
+        ],
+      },
+      {
+        title: "Removed some logging",
+        type: "Fixed",
+        items: ["Removed the [PATCHED] prefix"],
+      },
+      {
+        title: "Fixed buggy unmuting",
+        type: "fixed",
+        items: [
+          "Sometimes, channels were not unmuted when no targets are running.",
+        ],
+      },
+      {
+        title: "Getting the plug-in approved by the BDAPI guys",
+        type: "fixed",
+        items: [
+          "Fixed wrong ID in META",
+          "Switched from `getToken` to `getCurrentUser`",
+        ],
+      },
       {
         title: "Auto-refreshing status cache",
         type: "added",
@@ -419,7 +477,7 @@ module.exports = (() => {
             running: Array<string>; // the currently running targets
             settings: settings_obj; // the current settings. This will be saved to `CodingDND.config.json`
             run_loop: boolean; // the flag for whether to keep the trakcing loop running
-            last_status: string; // The last status that was set. Used to avoid unnecessary API calls. Must be in ['online', 'invisible', 'idle', 'dnd']
+            last_status: Status; // The last status that was set. Used to avoid unnecessary API calls.
             get_all_processes: process_parser; // The function that gets the process list. This is defined at runtime
             settings_panel: HTMLElement | undefined; // the Settings.SettingsPanel to be updated after some variables load
             status_updater: any; // the webpack module used to update the status
@@ -427,7 +485,7 @@ module.exports = (() => {
             channel_getter: any; // the webpack module used for finding channel objects
             mute_getter: any; // the webpack module for checking if a channel is muted
             status_getter: any; // the webpack module used for getting the current status
-            token_getter: any; // the webpack module used for getting the user's ID to get their status
+            user_id: string | undefined; // the webpack module used for getting the user's ID to get their status
 
             constructor() {
               super();
@@ -449,7 +507,6 @@ module.exports = (() => {
               this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
               this.channel_getter = Bapi.findModuleByProps("getChannel");
               this.status_getter = Bapi.findModuleByProps("getStatus");
-              this.token_getter = Bapi.findModuleByProps("getToken");
 
               // initialise last_status to the current status
               this.last_status = this.get_status();
@@ -503,33 +560,57 @@ module.exports = (() => {
               return config.info.version;
             }
 
-            onStart() {
+            start() {
               Logger.log("Started");
-              Patcher.before(Logger, "log", (t, a) => {
-                a[0] = "Patched Message: " + a[0];
-              });
 
               // start the loop
               this.run_loop = true; // ensure that the loop restarts in the case of a reload
               this.loop();
-              Logger.log("Tracking loop started");
+              this.log_func("Tracking loop started");
 
               // start the status updater
               this.status_refresh_loop();
-              Logger.log("Status refresher loop started");
+              this.log_func("Status refresher loop started");
 
               // patch the menus
               this.patch_channel_ctx_menu();
-              Logger.log("Injected custom channel context menus");
+              this.log_func("Injected custom channel context menus");
             }
-            onStop() {
-              Logger.log("Stopped");
+            stop() {
+              this.log_func("Stopped");
               this.run_loop = false;
               Patcher.unpatchAll();
             }
 
             load() {
               super.load();
+              this.load_user();
+            }
+
+            /**
+             * Wait until the user has logged in. Set `user_id` and `run_loop`
+             */
+            async load_user() {
+              // The user isn't instantiated until loaded
+              const get_user = () =>
+                Bapi.findModuleByProps("getCurrentUser").getCurrentUser();
+              let user: { id: string } | undefined;
+              // try getting the user every second until successful
+              for (let attempt = 0; attempt < 10; attempt++) {
+                this.log_func(
+                  `Attempt ${attempt + 1}: trying to get the user id`
+                );
+                await this.sleep(3000);
+                user = get_user();
+              }
+              if (!user) {
+                Bapi.showToast("Couldn't get user ID. Cannot run loop.", {
+                  type: "error",
+                });
+                throw new Error("Couldn't get user ID.");
+              }
+              this.user_id = user.id;
+              this.log_func("Got user id. Ready to start loop");
               this.run_loop = true; // in case it's being reloaded
             }
 
@@ -537,7 +618,7 @@ module.exports = (() => {
              * Set the user's status
              * @param set_to The status to set. This may be dnd, online, invisible, or idle
              */
-            async set_status(set_to: string): Promise<void> {
+            async set_status(set_to: Status): Promise<void> {
               if (!["online", "dnd", "idle", "invisible"].includes(set_to)) {
                 throw Error(
                   'Invalid status name. It must be "online", "dnd", "idle", or "invisible"'
@@ -549,16 +630,36 @@ module.exports = (() => {
             }
 
             /**
+             * Decide whether to log state or not based on `this.settings.misc_settings.logger_enabled`
+             */
+            get log_func(): log_funcT {
+              // this might be called before the initialiser, so it's needed to check settings
+              return this.settings && this.settings.misc_settings.logger_enabled
+                ? (msg: string) => Logger.log(msg)
+                : () => {};
+            }
+
+            /**
              * Get the user's current status
              */
-            get_status() {
-              return this.status_getter.getStatus(
-                this.token_getter.getId() // get the current user's ID
+            get_status(): Status {
+              const status = this.status_getter.getStatus(
+                this.user_id // get the current user's ID
               );
+              this.log_func(`Fetched status: ${status}`);
+              return status;
             }
 
             /** Change the user's status depending on whether targets are running */
             change_status() {
+              // Do not update status while invisible unless the setting is disabled
+              if (
+                this.settings.misc_settings.ignore_invisible &&
+                this.get_status() === "invisible"
+              ) {
+                this.log_func("Didn't update status as the user is invisible");
+                return;
+              }
               // set the status if running, remove status if not running
               const change_to = this.running.length // an empty list is truthy BRUH
                 ? this.settings.active_status
@@ -566,7 +667,7 @@ module.exports = (() => {
 
               // only make an API call if the status will change
               if (change_to !== this.last_status) {
-                Logger.log(`Setting new status: ${change_to}`);
+                this.log_func(`Setting new status: ${change_to}`);
                 this.set_status(change_to);
                 this.last_status = change_to;
               }
@@ -586,16 +687,18 @@ module.exports = (() => {
                 .filter(not_empty); // check if any of the values are truthy
             }
 
+            async sleep(ms: number): Promise<void> {
+              return new Promise((r) => setTimeout(r, ms));
+            }
+
             /**
              * Continually check for a target being started or stopped
              */
             async loop() {
-              const sleep = () => new Promise((r) => setTimeout(r, 30000)); // sleep for 30 seconds
-
               while (true) {
                 // exit if cancelled
                 if (!this.run_loop) {
-                  Logger.log("Tracking loop killed.");
+                  this.log_func("Tracking loop killed.");
                   return;
                 }
 
@@ -617,7 +720,7 @@ module.exports = (() => {
                 });
 
                 // log the new `running`
-                Logger.log(
+                this.log_func(
                   `Running targets detected: ${
                     this.running.length ? this.running : "None"
                   }`
@@ -627,7 +730,7 @@ module.exports = (() => {
                 this.update_channel_mutes();
 
                 // sleep for 30 seconds
-                await sleep();
+                await this.sleep(30000);
               }
             }
 
@@ -640,13 +743,13 @@ module.exports = (() => {
               while (true) {
                 // exit if cancelled
                 if (!this.run_loop) {
-                  Logger.log("Status refresh loop killed.");
+                  this.log_func("Status refresh loop killed.");
                   return;
                 }
 
                 this.last_status = this.get_status();
-                Logger.log(
-                  `Refreshed cached status. New cached status: ${this.current_status}`
+                this.log_func(
+                  `Refreshed cached status. New cached status: ${this.last_status}`
                 );
                 await sleep();
               }
@@ -748,7 +851,7 @@ module.exports = (() => {
 
             /** Mute/unmute all targeted channels depending on whether targets are running */
             update_channel_mutes() {
-              const mute = this.targets.length ? true : false;
+              const mute = this.running.length ? true : false;
               let channels_muted: Array<string> = [];
               Object.entries(this.settings.mute_targets).forEach(
                 ([name, target]: [string, mute_channel]) => {
@@ -758,7 +861,7 @@ module.exports = (() => {
                   }
                 }
               );
-              Logger.log(
+              this.log_func(
                 `${mute ? "Muted" : "Unmuted"} ${
                   channels_muted.join(", ") || "0 channels"
                 }`
@@ -825,7 +928,8 @@ module.exports = (() => {
                 this.target_process_menu,
                 this.status_menu,
                 this.custom_processes_menu,
-                this.mute_channels_menu
+                this.mute_channels_menu,
+                this.misc_settings_menu
               );
               return this.settings_panel;
             }
@@ -916,7 +1020,7 @@ module.exports = (() => {
                   "The status to set when one of the targets is running",
                   this.settings.active_status,
                   statuses,
-                  (new_status: string) =>
+                  (new_status: Status) =>
                     (this.settings.active_status = new_status)
                 ),
                 new Settings.Dropdown(
@@ -924,7 +1028,7 @@ module.exports = (() => {
                   "The status to set when none of the targets are running",
                   this.settings.inactive_status,
                   statuses,
-                  (new_status: string) =>
+                  (new_status: Status) =>
                     (this.settings.inactive_status = new_status)
                 ),
                 ...this.menu_padding // NOTE: these are needed because the bottommost options in dropdowns were getting cut off the screen
@@ -1012,12 +1116,31 @@ module.exports = (() => {
               );
             }
 
+            get misc_settings_menu(): object {
+              return new Settings.SettingGroup("Misc Settings").append(
+                new Settings.Switch(
+                  "Enable logger",
+                  "Enable logging of state to the console. This is useful when reporting a bug.",
+                  this.settings.misc_settings.logger_enabled,
+                  (new_val: boolean) =>
+                    (this.settings.misc_settings.logger_enabled = new_val)
+                ),
+                new Settings.Switch(
+                  "Ignore invisible",
+                  "Don't update the status if the status is invisible",
+                  this.settings.misc_settings.ignore_invisible,
+                  (new_val: boolean) =>
+                    (this.settings.misc_settings.ignore_invisible = new_val)
+                )
+              );
+            }
+
             /**
              * Register a new process to track
              * @param name The name to register
              */
             track(name: string) {
-              Logger.log(`Tracked ${name}`);
+              this.log_func(`Tracked ${name}`);
               this.settings.tracked_items[name].is_tracked = true;
               this.targets.push(
                 ...this.settings.tracked_items[name].process_names
@@ -1029,7 +1152,7 @@ module.exports = (() => {
              * @param name The name to unregister
              */
             untrack(name: string) {
-              Logger.log(`Untracked ${name}`);
+              this.log_func(`Untracked ${name}`);
               this.settings.tracked_items[name].is_tracked = false;
               const actual_names: process_list_type = this.settings
                 .tracked_items[name].process_names;
@@ -1098,4 +1221,3 @@ module.exports = (() => {
         // @ts-ignore
       })(global.ZeresPluginLibrary.buildPlugin(config));
 })();
-/*@end@*/
