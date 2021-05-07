@@ -612,6 +612,7 @@ module.exports = (() => {
                 );
                 await this.sleep(3000);
                 user = get_user();
+                if (user) break;
               }
               if (!user) {
                 Bapi.showToast("Couldn't get user ID. Cannot run loop.", {
