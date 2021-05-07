@@ -286,7 +286,7 @@ module.exports = (() => {
           github_username: "SMC242",
         },
       ],
-      version: "3.2.6",
+      version: "3.2.7",
       description:
         "This plugin will set the Do Not Disturb status when you open an IDE.",
       github: "https://github.com/SMC242/CodingDND/tree/stable",
@@ -294,6 +294,11 @@ module.exports = (() => {
         "https://raw.githubusercontent.com/SMC242/CodingDND/stable/CodingDND.plugin.js",
     },
     changelog: [
+      {
+        title: "Invisible ignoring should work again",
+        type: "fixed",
+        items: ["The last update broke it"],
+      },
       {
         Title: "Made the plugin work again!",
         type: "fixed",
@@ -487,7 +492,7 @@ module.exports = (() => {
             running: Array<string>; // the currently running targets
             settings: settings_obj; // the current settings. This will be saved to `CodingDND.config.json`
             run_loop: boolean; // the flag for whether to keep the trakcing loop running
-            last_status: Status; // The last status that was set. Used to avoid unnecessary API calls.
+            last_status: Status | undefined; // The last status that was set. Used to avoid unnecessary API calls.
             get_all_processes: process_parser; // The function that gets the process list. This is defined at runtime
             settings_panel: HTMLElement | undefined; // the Settings.SettingsPanel to be updated after some variables load
             status_updater: any; // the webpack module used to update the status
@@ -501,8 +506,11 @@ module.exports = (() => {
               super();
               this.running = [];
               this.targets = [];
-              this.run_loop = true; // used to stop the loop
+              this.run_loop = false; // used to stop the loop. This will become `true` once loaded
               this.settings_panel;
+              // SEE: `load_user` for where `last_status` and `user_id` are initialised properly
+              this.last_status = undefined;
+              this.user_id = undefined;
 
               // get process parser
               this.get_all_processes = get_process_parser(); // decide the platform only once
@@ -517,9 +525,6 @@ module.exports = (() => {
               this.mute_getter = Bapi.findModuleByProps("isChannelMuted");
               this.channel_getter = Bapi.findModuleByProps("getChannel");
               this.status_getter = Bapi.findModuleByProps("getStatus");
-
-              // initialise last_status to the current status
-              this.last_status = this.get_status();
 
               // initialise the settings if this is the first run
               const settings_from_config: unknown = Bapi.loadData(
@@ -572,16 +577,6 @@ module.exports = (() => {
 
             start() {
               Logger.log("Started");
-
-              // start the loop
-              this.run_loop = true; // ensure that the loop restarts in the case of a reload
-              this.loop();
-              this.log_func("Tracking loop started");
-
-              // start the status updater
-              this.status_refresh_loop();
-              this.log_func("Status refresher loop started");
-
               // patch the menus
               this.patch_channel_ctx_menu();
               this.log_func("Injected custom channel context menus");
@@ -598,7 +593,8 @@ module.exports = (() => {
             }
 
             /**
-             * Wait until the user has logged in. Set `user_id` and `run_loop`
+             * Wait until the user has logged in. Set `user_id`, `last_status`, and `run_loop`
+             * Starts the loops once those variables are set
              */
             async load_user() {
               // The user isn't instantiated until loaded
@@ -622,7 +618,17 @@ module.exports = (() => {
               }
               this.user_id = user.id;
               this.log_func("Got user id. Ready to start loop");
-              this.run_loop = true; // in case it's being reloaded
+              // initialise last_status to the current status
+              this.last_status = this.get_status();
+
+              // start the loop
+              this.run_loop = true;
+              this.loop();
+              this.log_func("Tracking loop started");
+
+              // start the status updater
+              this.status_refresh_loop();
+              this.log_func("Status refresher loop started");
             }
 
             /**
