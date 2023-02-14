@@ -1,5 +1,8 @@
+# Plugin Discontinued
+Due to the constant breaking changes, I have decided to stop maintaining this plugin. This is not the BetterDiscord developers' fault - it is part and parcel of unoffical modding.
+
+# Description
 This BetterDiscord plugin will set your statuses and mute channels when certain processes run.
-NOTE: Linux support is patchy at the moment
 
 ## <u>Preview</u>
 
